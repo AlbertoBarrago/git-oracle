@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import { GitService } from './gitService';
-import { LogPanel } from './logPanel';
-import { CherryPickPanel } from './cherryPickPanel';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
@@ -265,6 +263,8 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 if (message.command === 'refresh') {
                     const refreshedLog = await this.gitService.getLog();
                     webviewView.webview.html = this.generateLogHtml(refreshedLog);
+                } else if (message.command === 'showCommitDetails') {
+                    vscode.window.showInformationMessage(`Commit: ${message.hash}\nAuthor: ${message.author}\nMessage: ${message.message}`);
                 }
             });
         } catch (error) {
@@ -285,38 +285,144 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                         font-family: var(--vscode-font-family);
                         color: var(--vscode-foreground);
                         background-color: var(--vscode-editor-background);
-                        padding: 10px;
+                        padding: 0;
+                        margin: 0;
+                        line-height: 1.4;
                     }
-                    pre {
-                        white-space: pre-wrap;
-                        word-wrap: break-word;
+                    /* Proper CSS comment format */
+                    .log-container {
+                        overflow: auto;
+                        height: 100vh;
                     }
-                    button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 5px 10px;
+                    .commit-entry {
+                        display: flex;
+                        align-items: center;
+                        padding: 4px 8px;
+                        border-bottom: 1px solid transparent;
                         cursor: pointer;
+                        position: relative;
                     }
-                    button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
+                    .commit-entry:hover {
+                        background-color: var(--vscode-list-hoverBackground);
+                    }
+                    .commit-dot {
+                        color: #3794ff;
+                        font-size: 18px;
+                        margin-right: 8px;
+                        line-height: 0;
+                    }
+                    .commit-graph {
+                        color: #3794ff;
+                        font-family: monospace;
+                        margin-right: 8px;
+                        display: inline-block;
+                        line-height: 1;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .commit-message {
+                        color: var(--vscode-foreground);
+                        flex-grow: 1;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    .commit-author {
+                        color: var(--vscode-descriptionForeground);
+                        margin-left: 8px;
+                        font-size: 0.9em;
+                    }
+                    .branch-tag {
+                        display: inline-block;
+                        background-color: var(--vscode-badge-background);
+                        color: var(--vscode-badge-foreground);
+                        border-radius: 10px;
+                        padding: 1px 6px;
+                        font-size: 0.8em;
+                        margin-left: 8px;
+                    }
+                    .commit-line {
+                        position: absolute;
+                        left: 9px;
+                        width: 2px;
+                        background-color: #3794ff;
+                        opacity: 0.6;
+                        z-index: 0;
+                        top: 0;
+                        bottom: 0;
+                    }
+                    .commit-container {
+                        position: relative;
                     }
                 </style>
             </head>
             <body>
-                <h2>Git Log</h2>
-                <div style="margin-top: 10px; margin-bottom: 10px; overflow: auto; max-height: 500px;">
-                    <pre>${this.escapeHtml(log)}</pre>
+                <div class="log-container">
+                    ${this.formatLogWithStyle(log)}
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
-                    function refresh() {
-                        vscode.postMessage({ command: 'refresh' });
+                    
+                    function showCommitDetails(hash, author, message) {
+                        vscode.postMessage({ 
+                            command: 'showCommitDetails',
+                            hash: hash,
+                            author: author,
+                            message: message
+                        });
                     }
                 </script>
             </body>
             </html>
         `;
+    }
+
+    private formatLogWithStyle(log: string): string {
+        const lines = log.split('\n');
+        let formattedLog = '';
+        
+        for (const line of lines) {
+            // Updated regex to match the new git log format
+            const match = line.match(/^(.*?)([a-f0-9]+) (\d{4}-\d{2}-\d{2}) \| ([^[]+)(?:\((.*?)\))? \[(.+?)\]$/);
+            
+            if (match) {
+                const graphChars = match[1] || '';
+                const hash = match[2];
+                const date = match[3];
+                const message = match[4].trim();
+                const branchInfo = match[5];
+                const author = match[6];
+                
+                let branchTag = '';
+                if (branchInfo) {
+                    const headMatch = branchInfo.match(/HEAD -> ([^,]+)/);
+                    if (headMatch) {
+                        branchTag = `<span class="branch-tag">${this.escapeHtml(headMatch[1])}</span>`;
+                    }
+                }
+                
+                formattedLog += `
+                    <div class="commit-entry" onclick="showCommitDetails('${hash}', '${this.escapeHtml(author)}', '${this.escapeHtml(message)}')">
+                        <pre class="commit-graph">${this.formatGraphChars(graphChars)}</pre>
+                        <span class="commit-message">${this.escapeHtml(message)}${branchTag}</span>
+                        <span class="commit-author">${this.escapeHtml(author)}</span>
+                    </div>
+                `;
+            }
+        }
+        
+        return formattedLog;
+    }
+    
+    private formatGraphChars(graphChars: string): string {
+        if (!graphChars) return '';
+        console.log(graphChars)
+        return graphChars
+            .replace(/\*/g, '●')
+            .replace(/\|/g, '│')
+            .replace(/[/]/g, '╱')
+            .replace(/[\\]/g, '╲')
+            .replace(/ /g, '&nbsp;');
     }
 
     private generateErrorHtml(error: Error): string {
@@ -338,30 +444,12 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                         color: var(--vscode-errorForeground);
                         padding: 20px;
                     }
-                    button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 5px 10px;
-                        cursor: pointer;
-                    }
-                    button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
                 </style>
             </head>
             <body>
-                <h2>Git Log</h2>
                 <div class="error">
-                    <h3>Error</h3>
                     <p>${this.escapeHtml(error.message)}</p>
                 </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    function refresh() {
-                        vscode.postMessage({ command: 'refresh' });
-                    }
-                </script>
             </body>
             </html>
         `;

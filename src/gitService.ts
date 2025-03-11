@@ -54,7 +54,7 @@ export class GitService {
     async getLog(): Promise<string> {
         try {
             const { stdout } = await execAsync(
-                'git log --color=always --pretty=format:"%C(yellow)%h%C(reset) -%C(auto)%d%C(reset) %s %C(green)(%cr) %C(blue)<%an>%C(reset)" --graph --name-status',
+                'git log --graph --pretty=format:"%h %ad | %s%d [%an]" --date=short',
                 { cwd: this.getWorkspaceRoot() }
             );
             return stdout;

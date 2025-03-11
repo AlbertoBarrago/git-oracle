@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import { GitService } from './gitService';
-import { LogPanel } from './logPanel';
-import { CherryPickPanel } from './cherryPickPanel';
 import { 
     BranchViewProvider,
     LogViewProvider, 
@@ -12,15 +10,15 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Git Oracle extension is now active');
 
     const gitService = new GitService();
-
+    
     // Register the view providers
     const branchViewProvider = new BranchViewProvider(context.extensionUri, gitService);
     const logViewProvider = new LogViewProvider(context.extensionUri, gitService);
     const cherryPickViewProvider = new CherryPickViewProvider(context.extensionUri, gitService);
 
     context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleLog', logViewProvider),
+        vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider),
     );
 
@@ -34,11 +32,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     let logCommand = vscode.commands.registerCommand('git-oracle.showLog', () => {
-        LogPanel.createOrShow(context.extensionUri, gitService);
+        vscode.commands.executeCommand('workbench.view.extension.git-oracle');
     });
 
     let cherryPickCommand = vscode.commands.registerCommand('git-oracle.cherryPick', () => {
-        CherryPickPanel.createOrShow(context.extensionUri, gitService);
+        vscode.commands.executeCommand('workbench.view.extension.git-oracle');
     });
 
     let branchCommand = vscode.commands.registerCommand('git-oracle.showBranches', () => {
