@@ -33,6 +33,32 @@ export class LogPanel {
         LogPanel.currentPanel = new LogPanel(panel, extensionUri, gitService);
     }
 
+    public static reload(extensionUri: vscode.Uri, gitService: GitService) {
+        // Force dispose the current panel if it exists
+        if (LogPanel.currentPanel) {
+            LogPanel.currentPanel.dispose();
+            LogPanel.currentPanel = undefined;
+        }
+        
+        // Create a new panel
+        const column = vscode.window.activeTextEditor
+            ? vscode.window.activeTextEditor.viewColumn
+            : undefined;
+            
+        const panel = vscode.window.createWebviewPanel(
+            'gitOracleLog',
+            'Git Log',
+            column || vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: false, // Don't keep the webview content when hidden
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+            }
+        );
+
+        LogPanel.currentPanel = new LogPanel(panel, extensionUri, gitService);
+    }
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, gitService: GitService) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -72,7 +98,17 @@ export class LogPanel {
 
     private async _update() {
         this._panel.title = 'Git Log';
-        this._panel.webview.html = await this._getHtmlForWebview();
+        
+        // Generate a unique timestamp for cache busting
+        const timestamp = new Date().getTime();
+        
+        // Add cache-busting headers
+        const html = await this._getHtmlForWebview();
+        this._panel.webview.html = html.replace('<head>', `<head>
+            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+            <meta http-equiv="Pragma" content="no-cache" />
+            <meta http-equiv="Expires" content="0" />
+            <script>window.cacheBuster = "${timestamp}";</script>`);
     }
 
     private async _getHtmlForWebview() {
@@ -100,10 +136,63 @@ export class LogPanel {
                         padding: 10px;
                     }
                     pre {
-                        white-space: pre-wrap;
-                        word-wrap: break-word;
-                        font-family: var(--vscode-editor-font-family);
-                        font-size: var(--vscode-editor-font-size);
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        white-space: pre;
+                        overflow-x: auto;
+                        margin: 0;
+                        padding: 10px;
+                        background-color: var(--vscode-editor-background);
+                        border-radius: 4px;
+                        line-height: 1.4;
+                    }
+                    .commit-graph {
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        font-size: 14px;
+                    }
+                    .commit-hash {
+                        color: #4ec9b0; /* Bright teal */
+                        font-weight: bold;
+                    }
+                    .commit-author {
+                        color: #569cd6; /* Bright blue */
+                        opacity: 0.8;
+                    }
+                    .commit-date {
+                        color: #ce9178; /* Orange */
+                        font-style: italic;
+                    }
+                    .commit-message {
+                        color: #dcdcaa; /* Light yellow */
+                        font-weight: bold;
+                    }
+                    .graph-symbol {
+                        color: #3794ff; /* VS Code blue */
+                        font-weight: bold;
+                    }
+                    .graph-branch {
+                        color: #569cd6; /* Blue */
+                    }
+                    .graph-merge {
+                        color: #c586c0; /* Purple */
+                    }
+                    .branch-tag {
+                        display: inline-block;
+                        background-color: #3794ff;
+                        color: white;
+                        border-radius: 12px;
+                        padding: 2px 8px;
+                        font-size: 12px;
+                        margin-left: 8px;
+                    }
+                    .commit-line {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 4px;
+                        padding: 4px 0;
+                        border-radius: 4px;
+                    }
+                    .commit-line:hover {
+                        background-color: rgba(255, 255, 255, 0.1);
                     }
                     button {
                         background-color: var(--vscode-button-background);
@@ -119,8 +208,9 @@ export class LogPanel {
             </head>
             <body>
                 <h1>Git Log</h1>
+                <button onclick="refresh()">Refresh</button>
                 <div style="margin-top: 10px; margin-bottom: 10px; overflow: auto; max-height: 500px;">
-                    <pre>${this._escapeHtml(log)}</pre>
+                    <pre class="commit-graph">${this._formatLogWithGraph(log)}</pre>
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -150,6 +240,20 @@ export class LogPanel {
                         color: var(--vscode-foreground);
                         background-color: var(--vscode-editor-background);
                         padding: 10px;
+                    }
+                    pre {
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        white-space: pre;
+                        overflow-x: auto;
+                        margin: 0;
+                        padding: 10px;
+                        background-color: var(--vscode-editor-background);
+                        border-radius: 4px;
+                    }
+                    .commit-graph {
+                        line-height: 1.5;
+                        font-size: 14px;
+                    }
                     }
                     .error {
                         color: var(--vscode-errorForeground);
@@ -185,6 +289,44 @@ export class LogPanel {
             </body>
             </html>
         `;
+    }
+
+    private _formatLogWithGraph(log: string): string {
+        // Split the log into lines and process each line
+        return log.split('\n').map(line => {
+            // For simple log format without graph (matches your actual output format)
+            if (line.startsWith('*')) {
+                // Format: * hash - (time ago) message - author
+                const hashMatch = line.match(/\* ([a-f0-9]+) -/);
+                const dateMatch = line.match(/\(([^)]+)\)/);
+                const authorMatch = line.match(/- ([^(]+)$/);
+                
+                if (hashMatch) {
+                    const hash = hashMatch[1];
+                    const dateText = dateMatch ? dateMatch[0] : '';
+                    const author = authorMatch ? authorMatch[1].trim() : '';
+                    
+                    // Extract message by removing hash, date and author parts
+                    let message = line
+                        .replace(/\* [a-f0-9]+ -/, '')
+                        .replace(/\([^)]+\)/, '')
+                        .replace(/- [^(]+$/, '')
+                        .trim();
+                    
+                    // Use inline styles instead of classes
+                    return `<div style="display: flex; align-items: center; margin-bottom: 4px; padding: 4px 0; border-radius: 4px;">
+                        <span style="color: #3794ff; font-weight: bold;">●</span> 
+                        <span style="color: #4ec9b0; font-weight: bold;">${this._escapeHtml(hash)}</span> 
+                        <span style="color: #ce9178; font-style: italic;">${this._escapeHtml(dateText)}</span> 
+                        <span style="color: #dcdcaa; font-weight: bold;">${this._escapeHtml(message)}</span> 
+                        <span style="color: #569cd6; opacity: 0.8;">- ${this._escapeHtml(author)}</span>
+                    </div>`;
+                }
+            }
+            
+            // Simplified handling for other formats
+            return `<div style="margin-bottom: 4px;">${this._escapeHtml(line)}</div>`;
+        }).join('\n');
     }
 
     private _escapeHtml(unsafe: string): string {

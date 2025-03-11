@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import { GitService } from './gitService';
-import { LogPanel } from './logPanel';
-import { CherryPickPanel } from './cherryPickPanel';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
