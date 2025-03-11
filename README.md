@@ -60,3 +60,10 @@ Tweak these magical parameters to your liking:
 ### Creating the Magic Potion (Package)
 
 Want to bottle this magic? Here's how:
+1. Cast `vsce package`
+2. Drink the potion!
+
+
+## Buy me a beer 
+If you find this extension useful, consider buying me a beer. Your support keeps me going!
+- https://buymeacoffee.com/albz
