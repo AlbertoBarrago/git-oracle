@@ -1,69 +1,46 @@
 # 🔮 Git Oracle: Your Magical Git Companion
 
-Hey there, fellow code wizards! 🧙‍♂️ Welcome to Git Oracle - the VS Code extension that turns your mundane Git operations into a mystical journey through time and space (well, mostly through your commit history, but that's pretty magical too!)
+Git Oracle enhances your VS Code Git experience with powerful visualization tools and streamlined workflows.
 
-## ✨ Magical Features
+## ✨ Features
 
-### 📜 The Ancient Scrolls (Git Log)
-Summon the logs of old with custom incantations (aka Git log arguments). Watch as the terminal wisdom unfolds before your eyes!
+### 📜 Git Log
+View your commit history with customizable formatting and filtering options.
 
-### 🍒 Cherry-picking Magic
-Like a coding sommelier, carefully select the finest commits from other branches. No actual cherries were harmed in the making of this feature.
+### 🍒 Cherry-picking
+Easily select and apply specific commits from other branches.
 
 ### 🌳 Branch Management
-Navigate and manage your branches with ease. Create, switch, and merge branches like a true Git sorcerer!
+Create, switch, and manage branches with an intuitive interface.
 
-## 🧰 Requirements (The Boring But Important Stuff)
+## 🧰 Requirements
 
-- Git (duh!) properly installed and in your PATH
-- VS Code 1.60.0+ (because we're not savages living in the past)
+- Git installed and in your PATH
+- VS Code 1.60.0 or higher
 
-## 🎛️ Customization Spells (Settings)
+## 🎛️ Settings
 
-Tweak these magical parameters to your liking:
+* `gitOracle.gitPath`: Path to Git executable (default: "git")
+* `gitOracle.maxCommitHistory`: Maximum commits to display (default: 100)
+* `gitOracle.showRelativeDates`: Show relative dates (default: true)
 
-* `gitOracle.gitPath`: Where's your Git wand? (default: "git")
-* `gitOracle.maxCommitHistory`: How far back in time do you dare to look? (default: 100 commits)
-* `gitOracle.showRelativeDates`: Show dates like "2 full moons ago" instead of boring timestamps (default: true)
+## 🪄 Usage
 
-## 🪄 Casting Your First Spells (Usage)
+Access Git Oracle features through:
+- The Git Oracle sidebar icon
+- Command Palette commands (Git Oracle: ...)
 
-### Ancient Scrolls
-1. Summon the Command Palette (Ctrl+Shift+P)
-2. Invoke "Git Oracle: Show Log"
-3. Add your secret log ingredients
-4. Behold the wisdom!
+## 🧪 Development
 
-### Cherry-picking
-1. Summon the Command Palette (Ctrl+Shift+P)
-2. Whisper "Git Oracle: Cherry Pick"
-3. Choose your commit (choose wisely!)
-4. Let the magic happen
+1. Clone the repository
+2. Run `npm install`
+3. Run `npm run compile`
+4. Press F5 to launch with extension
 
-### Branch Management
-1. Summon the Command Palette (Ctrl+Shift+P)
-2. Choose your branch-related spell:
-   - "Git Oracle: Create Branch"
-   - "Git Oracle: Switch Branch"
-   - "Git Oracle: Merge Branch"
-3. Follow the mystical prompts
+## 📄 License
 
-## 🧪 Brewing Your Own Version (Development)
-
-### Crafting the Extension
-
-1. Clone this bad boy
-2. Cast `npm install` to summon dependencies
-3. Brew with `npm run compile`
-4. Press F5 to test your creation
-
-### Creating the Magic Potion (Package)
-
-Want to bottle this magic? Here's how:
-1. Cast `vsce package`
-2. Drink the potion!
-
+MIT License - See LICENSE file for details
 
 ## Buy me a beer 
-If you find this extension useful, consider buying me a beer. Your support keeps me going!
-- https://buymeacoffee.com/albz
+If you find this extension useful, you can buy me a beer at:
+https://buymeacoffee.com/albz

@@ -7,6 +7,11 @@
   "publisher": "alBz",
   "license": "MIT",
   "icon": "media/git-oracle-icon.png",
+  "readme": "README.md",
+  "galleryBanner": {
+    "color": "#2C2C54",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/AlbertoBarrago/git-oracle"
@@ -70,7 +75,7 @@
         {
           "id": "git-oracle",
           "title": "Git Oracle",
-          "icon": "media/git-oracle-icon.svg"
+          "icon": "media/git-oracle-icon.png"
         }
       ]
     },
