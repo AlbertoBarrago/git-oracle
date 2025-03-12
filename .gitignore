@@ -2,3 +2,4 @@
 out
 git-oracle
 node_modules
+git-oracle-**/*

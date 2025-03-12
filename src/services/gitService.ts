@@ -1,23 +1,9 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { BlameInfo, CommitInfo } from '../types/_index';
 
 const execAsync = promisify(exec);
-
-export interface CommitInfo {
-    hash: string;
-    author: string;
-    date: string;
-    message: string;
-}
-
-export interface BlameInfo {
-    hash: string;
-    author: string;
-    date: string;
-    line: number;
-    content: string;
-}
 
 export class GitService {
 
@@ -54,13 +40,33 @@ export class GitService {
     async getLog(): Promise<string> {
         try {
             const { stdout } = await execAsync(
-                'git log --graph --pretty=format:"%h %ad | %s%d [%an]" --date=short',
+                'git log --graph --oneline --decorate --all --abbrev-commit',
                 { cwd: this.getWorkspaceRoot() }
             );
             return stdout;
         } catch (error) {
             console.error('Error fetching git log:', error);
             throw new Error('Failed to fetch git log');
+        }
+    }
+
+    async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
+        try {
+            const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
+            const { stdout: user } = await execAsync('git config user.name', { cwd: this.getWorkspaceRoot() });
+            const timestamp = new Date().toLocaleString('en-US', { 
+                dateStyle: 'medium', 
+                timeStyle: 'medium' 
+            });
+
+            return {
+                branch: branch.trim(),
+                user: user.trim(),
+                timestamp
+            };
+        } catch (error) {
+            console.error('Error getting git status:', error);
+            throw error;
         }
     }
 
@@ -227,6 +233,30 @@ export class GitService {
         {
             console.error('Error fetching git branches:', error);
             throw new Error('Failed to fetch git branches');
+        }
+    }
+
+    async mergeBranches(label: string, branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git merge ${label} ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error merging branches:', error);
+            throw new Error(`Failed to merge branches '${label} ${branch}'`);
+        }
+    }
+
+    async rebaseBranches(label:string, branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git rebase ${label} ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error rebasing branches:', error);
+            throw new Error(`Failed to rebase branches '${label} ${branch}'`);
         }
     }
 }
