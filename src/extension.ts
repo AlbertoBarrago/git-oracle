@@ -1,49 +1,34 @@
 import * as vscode from 'vscode';
-import { GitService } from './gitService';
-import { 
-    BranchViewProvider,
-    LogViewProvider, 
-    CherryPickViewProvider 
-} from './viewProviders';
+import { GitService } from './services/gitService';
+import { BranchViewProvider, CherryPickViewProvider, LogViewProvider } from './providers';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Git Oracle extension is now active');
-
     const gitService = new GitService();
-    
+
     // Register the view providers
     const branchViewProvider = new BranchViewProvider(context.extensionUri, gitService);
     const logViewProvider = new LogViewProvider(context.extensionUri, gitService);
     const cherryPickViewProvider = new CherryPickViewProvider(context.extensionUri, gitService);
 
+    // Register webview providers
     context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider('gitOracleLog', logViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),
-        vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider),
-    );
-
-    // Register the refresh command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('git-oracle.refreshView', () => {
-            // Refresh the active view
-            vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
-        })
+        vscode.window.registerWebviewViewProvider('gitOracleLog', logViewProvider),
+        vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider)
     );
 
     // Register commands
-    let logCommand = vscode.commands.registerCommand('git-oracle.showLog', () => {
-        vscode.commands.executeCommand('workbench.view.extension.git-oracle');
-    });
-
-    let cherryPickCommand = vscode.commands.registerCommand('git-oracle.cherryPick', () => {
-        vscode.commands.executeCommand('workbench.view.extension.git-oracle');
-    });
-
-    let branchCommand = vscode.commands.registerCommand('git-oracle.showBranches', () => {
-        vscode.commands.executeCommand('workbench.view.extension.git-oracle');
-    });
-
-    context.subscriptions.push(logCommand, cherryPickCommand, branchCommand);
+    context.subscriptions.push(
+        vscode.commands.registerCommand('git-oracle.showLog', () => {
+            vscode.commands.executeCommand('workbench.view.extension.git-oracle');
+        }),
+        vscode.commands.registerCommand('git-oracle.cherryPick', () => {
+            vscode.commands.executeCommand('workbench.view.extension.git-oracle');
+        }),
+        vscode.commands.registerCommand('git-oracle.showBranches', () => {
+            vscode.commands.executeCommand('workbench.view.extension.git-oracle');
+        })
+    );
 }
 
 export function deactivate() {}
