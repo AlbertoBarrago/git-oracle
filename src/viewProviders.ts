@@ -62,7 +62,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     }
 
     private generateBranchesHtml(localBranches: string[], remoteBranches: Map<string, string[]>): string {
-        // Generate local branches HTML
         const localBranchesHtml = localBranches.map(branch => `
             <div class="branch-item">
                 <span class="branch-icon">🔸</span>
@@ -108,7 +107,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Branches</title>
+                <title>🚇 Branches</title>
                 <style>
                     body {
                         font-family: var(--vscode-font-family);
@@ -276,8 +275,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 </style>
             </head>
             <body>
-                <h2>Git Branches</h2>
-                <p>Here you can manage your Git branches, create new one, swtiching</p>
+                <h2>🚇 Branches</h2>
+                <p>Here you can manage your Git branches: create new ones, switch between branches, and delete existing branches.</p>
 
                 <button onclick="showNewBranchModal()" class="primary">Create Branch</button>
 
@@ -740,11 +739,10 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
     private generateCherryPickHtml(commits: { hash: string; author: string; date: string; message: string; }[]): string {
         const commitRows = commits.map(commit => `
             <tr>
-                <td>${commit.hash.substring(0, 7)}</td>
-                <td>${commit.author}</td>
-                <td>${commit.date}</td>
-                <td>${this.escapeHtml(commit.message)}</td>
-                <td>
+                <td style="width: 80px;">${commit.hash.substring(0, 7)} - ${commit.author}</td>
+                <td style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;" title="${commit.date}">${commit.date}</td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(commit.message)}</td>
+                <td style="width: 100px;">
                     <button onclick="cherryPick('${commit.hash}')">Cherry Pick</button>
                 </td>
             </tr>
@@ -756,11 +754,11 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Cherry Pick</title>
+                <title>🍒 Cherry Pick </title>
                 <style>
                     body {
                         font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
+                       color: var(--vscode-foreground);
                         background-color: var(--vscode-editor-background);
                         padding: 10px;
                     }
@@ -776,26 +774,59 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
                     th {
                         background-color: var(--vscode-editor-inactiveSelectionBackground);
                     }
-                    button {
+                  button {
                         background-color: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         border: none;
-                        padding: 5px 10px;
+                        padding: 6px 12px;
                         cursor: pointer;
+                        margin-left: 4px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        transition: all 0.2s ease;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
                     }
+
                     button:hover {
                         background-color: var(--vscode-button-hoverBackground);
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
                     }
+
+                    button:active {
+                        transform: translateY(0);
+                        box-shadow: none;
+                    }
+
+                    button[disabled] {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                        transform: none;
+                        box-shadow: none;
+                    }
+
+                    button.danger {
+                        background-color: var(--vscode-errorForeground);
+                    }
+
+                    button.primary {
+                        background-color: var(--vscode-button-background);
+                        font-weight: 500;
+                    }
+
                 </style>
             </head>
             <body>
-                <h2>Git Cherry Pick</h2>
+                <h2>🍒 Cherry Pick</h2>
+                <p>Here you can select a commit from any branch and apply those changes to your current branch. 
+                This is useful when you want to bring specific changes from one branch to another without merging the entire branch.</p>
                 <div style="margin-top: 10px; margin-bottom: 10px; overflow: auto; max-height: 500px;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Commit</th>
-                                <th>Author</th>
                                 <th>Date</th>
                                 <th>Message</th>
                                 <th>Actions</th>
