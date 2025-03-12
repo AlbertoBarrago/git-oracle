@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { GitService } from './gitService';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         webviewView.webview.options = {
@@ -18,18 +18,41 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
             webviewView.webview.onDidReceiveMessage(async message => {
                 switch (message.command) {
-                    case 'refresh':
-                        const refreshedLocal = await this.gitService.getLocalBranches();
-                        const refreshedRemote = await this.gitService.getRemoteBranches();
-                        webviewView.webview.html = this.generateBranchesHtml(refreshedLocal, refreshedRemote);
+                    case 'createBranch':
+                        try {
+                            await this.gitService.createBranch(message.branch);
+                            vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
+                            const refreshedBranchLocal = await this.gitService.getLocalBranches();
+                            const refreshedBranchRemote = await this.gitService.getRemoteBranches();
+                            webviewView.webview.html = this.generateBranchesHtml(refreshedBranchLocal, refreshedBranchRemote);
+                        } catch (error) {
+                            vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
+                        }
                         break;
-                    case 'checkout':
-                        await this.gitService.checkoutBranch(message.branch);
-                        vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
+                    case 'refresh':
+                        try {
+                            const refreshedLocal = await this.gitService.getLocalBranches();
+                            const refreshedRemote = await this.gitService.getRemoteBranches();
+                            webviewView.webview.html = this.generateBranchesHtml(refreshedLocal, refreshedRemote);
+                        } catch (error) {
+                            vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
+                        }
+                        break;
+                    case 'switch':
+                        try {
+                            await this.gitService.checkoutBranch(message.branch);
+                            vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
+                        } catch (error) {
+                            vscode.window.showErrorMessage(`Failed to checkout branch: ${error}`);
+                        }
                         break;
                     case 'delete':
-                        await this.gitService.deleteBranch(message.branch);
-                        vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
+                        try {
+                            await this.gitService.deleteBranch(message.branch);
+                            vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
+                        } catch (error) {
+                            vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
+                        }
                         break;
                 }
             });
@@ -39,18 +62,20 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     }
 
     private generateBranchesHtml(localBranches: string[], remoteBranches: Map<string, string[]>): string {
-        // Generate local branches HTML
         const localBranchesHtml = localBranches.map(branch => `
             <div class="branch-item">
                 <span class="branch-icon">🔸</span>
                 <span>${this.escapeHtml(branch)}</span>
                 <div class="branch-actions">
-                    <button onclick="checkout('${this.escapeHtml(branch)}')">Checkout</button>
-                    <button onclick="deleteBranch('${this.escapeHtml(branch)}')">Delete</button>
+                    <button onclick="switch('${this.escapeHtml(branch)}')">Switch</button>
+                    ${branch !== 'develop' ?
+                `<button onclick="confirmDelete('${this.escapeHtml(branch)}')">Delete</button>` :
+                '<button disabled title="Cannot delete develop branch" style="opacity: 0.5">Delete</button>'
+            }
                 </div>
             </div>
         `).join('');
-    
+
         // Generate remote branches HTML grouped by remote with collapsible sections
         let remoteBranchesHtml = '';
         remoteBranches.forEach((branches, remoteName) => {
@@ -67,7 +92,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                 <span class="branch-icon">🔹</span>
                                 <span>${this.escapeHtml(branch)}</span>
                                 <div class="branch-actions">
-                                    <button onclick="checkout('${remoteName}/${this.escapeHtml(branch)}')">Checkout</button>
+                                    <button onclick="switch('${remoteName}/${this.escapeHtml(branch)}')">Switch</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -75,14 +100,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 </div>
             `;
         });
-    
+
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Branches</title>
+                <title>🚇 Branches</title>
                 <style>
                     body {
                         font-family: var(--vscode-font-family);
@@ -125,17 +150,49 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     .branch-actions {
                         margin-left: auto;
                     }
+
                     button {
                         background-color: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         border: none;
-                        padding: 4px 8px;
+                        padding: 6px 12px;
                         cursor: pointer;
                         margin-left: 4px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        transition: all 0.2s ease;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
                     }
+
                     button:hover {
                         background-color: var(--vscode-button-hoverBackground);
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
                     }
+
+                    button:active {
+                        transform: translateY(0);
+                        box-shadow: none;
+                    }
+
+                    button[disabled] {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                        transform: none;
+                        box-shadow: none;
+                    }
+
+                    button.danger {
+                        background-color: var(--vscode-errorForeground);
+                    }
+
+                    button.primary {
+                        background-color: var(--vscode-button-background);
+                        font-weight: 500;
+                    }
+
                     .branch-icon {
                         margin-right: 8px;
                     }
@@ -146,11 +203,83 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     h4 {
                         margin: 0;
                     }
+
+                    .modal {
+                        display: none;
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: var(--vscode-editor-background);
+                        padding: 30px;
+                        border: 1px solid var(--vscode-panel-border);
+                        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                        z-index: 1000;
+                        min-width: 350px;
+                        width: 50%;
+                        max-width: 500px;
+                    }
+                    
+                    .modal-buttons {
+                        margin-top: 15px;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 10px;
+                    }
+                    
+                    .overlay {
+                        display: none;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0,0,0,0.5);
+                        z-index: 999;
+                    }
+                        .branch-form {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 12px;
+                        }
+
+                        .form-group {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 4px;
+                        }
+
+                        .form-group label {
+                            font-size: 12px;
+                            color: var(--vscode-foreground);
+                        }
+
+                        .form-group input {
+                            padding: 6px 8px;
+                            background: var(--vscode-input-background);
+                            color: var(--vscode-input-foreground);
+                            border: 1px solid var(--vscode-input-border);
+                            border-radius: 4px;
+                        }
+
+                        .form-group input:focus {
+                            outline: none;
+                            border-color: var(--vscode-focusBorder);
+                        }
+
+                        .error-text {
+                            color: var(--vscode-errorForeground);
+                            font-size: 12px;
+                            margin-top: 4px;
+                        }
                 </style>
             </head>
             <body>
-                <h2>Git Branches</h2>
-                
+                <h2>🚇 Branches</h2>
+                <p>Here you can manage your Git branches: create new ones, switch between branches, and delete existing branches.</p>
+
+                <button onclick="showNewBranchModal()" class="primary">Create Branch</button>
+
                 <div class="branch-section">
                     <h3>Local Branches</h3>
                     ${localBranchesHtml}
@@ -160,6 +289,50 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     <h3>Remote Branches</h3>
                     ${remoteBranchesHtml}
                 </div>
+
+                <div id="deleteModal" class="modal">
+                    <h3>Confirm Delete</h3>
+                    <p>Are you sure you want to delete branch: <span id="branchToDelete"></span>?</p>
+                    <div class="modal-buttons">
+                        <button onclick="cancelDelete()">Cancel</button>
+                        <button onclick="proceedDelete()" style="background: var(--vscode-errorForeground);">Delete</button>
+                    </div>
+                </div>
+                <div id="overlay" class="overlay"></div>
+
+                <div id="newBranchModal" class="modal">
+                    <h3>Create New Branch 🪄</h3>
+                    <div class="branch-form">
+                        <div class="form-group">
+                            <label for="branchType">Branch Type</label>
+                            <select id="branchType" onchange="updateBranchPreview()">
+                                <option value="feature">Feature</option>
+                                <option value="bugfix">Bugfix</option>
+                                <option value="hotfix">Hotfix</option>
+                                <option value="release">Release</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="branchName">Branch Name</label>
+                            <input type="text" id="branchName" 
+                                placeholder="e.g., add-user-authentication"
+                                onkeyup="updateBranchPreview()"
+                                pattern="[a-z0-9-]+"
+                            />
+                            <small class="error-text" id="nameError" style="display: none;">
+                                Branch name can only contain lowercase letters, numbers, and hyphens
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Preview</label>
+                            <div id="branchPreview" style="font-family: monospace;"></div>
+                        </div>
+                        <div class="modal-buttons">
+                            <button onclick="cancelNewBranch()">Cancel</button>
+                            <button class="primary" onclick="createNewBranch()">Create Branch</button>
+                        </div>
+                    </div>
+                </div>
     
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -168,8 +341,9 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({ command: 'refresh' });
                     }
     
-                    function checkout(branch) {
-                        vscode.postMessage({ command: 'checkout', branch });
+                    // In the script section, modify the switch function name to switchBranch
+                    function switchBranch(branch) {
+                        vscode.postMessage({ command: 'switchBranch', branch });
                     }
     
                     function deleteBranch(branch) {
@@ -193,6 +367,74 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             icon.style.transform = 'rotate(90deg)';
                         }
                     }
+                        let currentBranch = '';
+                    
+                    function confirmDelete(branch) {
+                        currentBranch = branch;
+                        document.getElementById('branchToDelete').textContent = branch;
+                        document.getElementById('deleteModal').style.display = 'block';
+                        document.getElementById('overlay').style.display = 'block';
+                    }
+                    
+                    function cancelDelete() {
+                        document.getElementById('deleteModal').style.display = 'none';
+                        document.getElementById('overlay').style.display = 'none';
+                        currentBranch = '';
+                    }
+                    
+                    function proceedDelete() {
+                        if (currentBranch) {
+                            vscode.postMessage({ command: 'delete', branch: currentBranch });
+                            cancelDelete();
+                        }
+                    }
+
+                    function showNewBranchModal() {
+                        document.getElementById('newBranchModal').style.display = 'block';
+                        document.getElementById('overlay').style.display = 'block';
+                        updateBranchPreview();
+                    }
+
+                    function cancelNewBranch() {
+                        document.getElementById('newBranchModal').style.display = 'none';
+                        document.getElementById('overlay').style.display = 'none';
+                        document.getElementById('branchName').value = '';
+                    }
+                    
+                    function updateBranchPreview() {
+                        const type = document.getElementById('branchType').value;
+                        const name = document.getElementById('branchName').value;
+                        const preview = document.getElementById('branchPreview');
+                        const nameError = document.getElementById('nameError');
+                        
+                        const namePattern = /^[a-z0-9-]+$/;
+                        const isValidName = namePattern.test(name) || name === '';
+                        
+                        nameError.style.display = isValidName ? 'none' : 'block';
+
+                        if (isValidName) {
+                            preview.textContent = \`\${type}/\${name}\`;
+                        }
+                    }
+
+                    function createNewBranch() {
+                        const type = document.getElementById('branchType').value;
+                        const name = document.getElementById('branchName').value;
+
+                       if (!name) {
+                            document.getElementById('nameError').textContent = 'Branch name is required';
+                            document.getElementById('nameError').style.display = 'block';
+                            return;
+                        }
+
+                        const namePattern = /^[a-z0-9-]+$/;
+                        if (!namePattern.test(name)) {
+                            return;
+                        }
+
+                        vscode.postMessage({ command: 'create', branch: \`\${type}/\${name}\` });
+                    }
+                        
                 </script>
             </body>
             </html>
@@ -247,18 +489,18 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 }
 
 export class LogViewProvider implements vscode.WebviewViewProvider {
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
-        
+
         try {
             const log = await this.gitService.getLog();
             webviewView.webview.html = this.generateLogHtml(log);
-            
+
             webviewView.webview.onDidReceiveMessage(async message => {
                 if (message.command === 'refresh') {
                     const refreshedLog = await this.gitService.getLog();
@@ -380,11 +622,11 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     private formatLogWithStyle(log: string): string {
         const lines = log.split('\n');
         let formattedLog = '';
-        
+
         for (const line of lines) {
             // Updated regex to match the new git log format
             const match = line.match(/^(.*?)([a-f0-9]+) (\d{4}-\d{2}-\d{2}) \| ([^[]+)(?:\((.*?)\))? \[(.+?)\]$/);
-            
+
             if (match) {
                 const graphChars = match[1] || '';
                 const hash = match[2];
@@ -392,7 +634,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 const message = match[4].trim();
                 const branchInfo = match[5];
                 const author = match[6];
-                
+
                 let branchTag = '';
                 if (branchInfo) {
                     const headMatch = branchInfo.match(/HEAD -> ([^,]+)/);
@@ -400,7 +642,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                         branchTag = `<span class="branch-tag">${this.escapeHtml(headMatch[1])}</span>`;
                     }
                 }
-                
+
                 formattedLog += `
                     <div class="commit-entry" onclick="showCommitDetails('${hash}', '${this.escapeHtml(author)}', '${this.escapeHtml(message)}')">
                         <pre class="commit-graph">${this.formatGraphChars(graphChars)}</pre>
@@ -410,10 +652,10 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 `;
             }
         }
-        
+
         return formattedLog;
     }
-    
+
     private formatGraphChars(graphChars: string): string {
         if (!graphChars) return '';
         console.log(graphChars)
@@ -466,18 +708,18 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 }
 
 export class CherryPickViewProvider implements vscode.WebviewViewProvider {
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
-        
+
         try {
             const commits = await this.gitService.getCommitHistory();
             webviewView.webview.html = this.generateCherryPickHtml(commits);
-            
+
             webviewView.webview.onDidReceiveMessage(async message => {
                 switch (message.command) {
                     case 'refresh':
@@ -497,11 +739,10 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
     private generateCherryPickHtml(commits: { hash: string; author: string; date: string; message: string; }[]): string {
         const commitRows = commits.map(commit => `
             <tr>
-                <td>${commit.hash.substring(0, 7)}</td>
-                <td>${commit.author}</td>
-                <td>${commit.date}</td>
-                <td>${this.escapeHtml(commit.message)}</td>
-                <td>
+                <td style="width: 80px;">${commit.hash.substring(0, 7)} - ${commit.author}</td>
+                <td style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;" title="${commit.date}">${commit.date}</td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(commit.message)}</td>
+                <td style="width: 100px;">
                     <button onclick="cherryPick('${commit.hash}')">Cherry Pick</button>
                 </td>
             </tr>
@@ -513,11 +754,11 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Cherry Pick</title>
+                <title>🍒 Cherry Pick </title>
                 <style>
                     body {
                         font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
+                       color: var(--vscode-foreground);
                         background-color: var(--vscode-editor-background);
                         padding: 10px;
                     }
@@ -533,26 +774,59 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
                     th {
                         background-color: var(--vscode-editor-inactiveSelectionBackground);
                     }
-                    button {
+                  button {
                         background-color: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         border: none;
-                        padding: 5px 10px;
+                        padding: 6px 12px;
                         cursor: pointer;
+                        margin-left: 4px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        transition: all 0.2s ease;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
                     }
+
                     button:hover {
                         background-color: var(--vscode-button-hoverBackground);
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
                     }
+
+                    button:active {
+                        transform: translateY(0);
+                        box-shadow: none;
+                    }
+
+                    button[disabled] {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                        transform: none;
+                        box-shadow: none;
+                    }
+
+                    button.danger {
+                        background-color: var(--vscode-errorForeground);
+                    }
+
+                    button.primary {
+                        background-color: var(--vscode-button-background);
+                        font-weight: 500;
+                    }
+
                 </style>
             </head>
             <body>
-                <h2>Git Cherry Pick</h2>
+                <h2>🍒 Cherry Pick</h2>
+                <p>Here you can select a commit from any branch and apply those changes to your current branch. 
+                This is useful when you want to bring specific changes from one branch to another without merging the entire branch.</p>
                 <div style="margin-top: 10px; margin-bottom: 10px; overflow: auto; max-height: 500px;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Commit</th>
-                                <th>Author</th>
                                 <th>Date</th>
                                 <th>Message</th>
                                 <th>Actions</th>
