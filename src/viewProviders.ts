@@ -62,29 +62,44 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     }
 
     private generateBranchesHtml(localBranches: string[], remoteBranches: Map<string, string[]>): string {
-        // Group local branches by prefix
         const groupedLocalBranches = this.groupBranchesByPrefix(localBranches);
-        
-        // Generate HTML for grouped local branches
+
         const localBranchesHtml = Object.entries(groupedLocalBranches).map(([prefix, branches]) => {
             const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
             return `
                 <div class="branch-group">
                     <div class="group-header" onclick="toggleGroup('${groupId}')">
                         <span class="toggle-icon">▶</span>
-                        <span class="group-name">${prefix.replace('/', '')}</span>
+                        <span class="group-name">
+                            ${prefix.includes('feature') ? '✨' :
+                    prefix.includes('bugfix') ? '🐛' :
+                        prefix.includes('hotfix') ? '🚨' :
+                            prefix.includes('release') ? '🚀' :
+                                prefix.includes('develop') ? '🛠️' : '📁'} 
+                            ${prefix.replace('/', '')}
+                        </span>
                         <span class="branch-count">${branches.length}</span>
                     </div>
                     <div id="${groupId}" class="group-content">
                         ${branches.map(branch => `
                             <div class="branch-item">
-                                <span class="branch-icon">🔸</span>
+                                <span class="branch-icon">
+                                    ${branch.includes('feature') ? '✨' :
+                                        branch.includes('bugfix') ? '🐛' :
+                                            branch.includes('hotfix') ? '🚨' :
+                                                branch.includes('release') ? '🚀' :
+                                                    branch.includes('develop') ? '🛠️' : '📁'}
+                                </span>
                                 <span>${this.escapeHtml(branch)}</span>
                                 <div class="branch-actions">
-                                    <button onclick="switchBranch('${this.escapeHtml(branch)}')">Switch</button>
+                                    <button onclick="switchBranch('${this.escapeHtml(branch)}')" class="action-button">
+                                        🔄 Switch
+                                    </button>
                                     ${branch !== 'develop' ?
-                                        `<button onclick="confirmDelete('${this.escapeHtml(branch)}')">Delete</button>` :
-                                        '<button disabled title="Cannot delete develop branch" style="opacity: 0.5">Delete</button>'
+                                        `<button onclick="confirmDelete('${this.escapeHtml(branch)}')" class="action-button danger">
+                                            🗑️ Delete
+                                        </button>` :
+                                        '<button disabled title="Cannot delete develop branch" class="action-button" style="opacity: 0.5">🗑️ Delete</button>'
                                     }
                                 </div>
                             </div>
@@ -98,7 +113,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         const remoteBranchesHtml = Array.from(remoteBranches.entries()).map(([remote, branches]) => {
             const remoteId = `remote-${remote.replace(/[^a-zA-Z0-9]/g, '-')}`;
             const groupedRemoteBranches = this.groupBranchesByPrefix(branches);
-            
+
             return `
                 <div class="remote-group">
                     <div class="group-header" onclick="toggleGroup('${remoteId}')">
@@ -108,8 +123,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div id="${remoteId}" class="group-content">
                         ${Object.entries(groupedRemoteBranches).map(([prefix, prefixBranches]) => {
-                            const subGroupId = `${remoteId}-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
-                            return `
+                const subGroupId = `${remoteId}-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                return `
                                 <div class="branch-subgroup">
                                     <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
                                         <span class="toggle-icon">▶</span>
@@ -118,7 +133,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                     </div>
                                     <div id="${subGroupId}" class="group-content">
                                         ${prefixBranches.map(branch => `
-                                            <div class="branch-item">
+                                            <div class="branch-item" oncontextmenu="event.preventDefault(); showRemoteBranchMenu(event, '${this.escapeHtml(branch)}')">
                                                 <span class="branch-icon">🔹</span>
                                                 <span>${this.escapeHtml(branch)}</span>
                                             </div>
@@ -126,13 +141,13 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+            }).join('')}
                     </div>
                 </div>
             `;
         }).join('');
 
-        // Update styles to fix arrow rotation and add remote styles
+
         const additionalStyles = `
             .group-content {
                 display: none;
@@ -193,134 +208,131 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>🚇 Branches</title>
                 <style>
-                    body {
-                        font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
-                        background-color: var(--vscode-editor-background);
-                        padding: 10px;
-                    }
-                    .branch-section {
-                        margin-bottom: 20px;
-                    }
-                    .remote-section {
-                        margin-bottom: 10px;
-                    }
-                    .remote-header {
-                        display: flex;
-                        align-items: center;
-                        cursor: pointer;
-                        padding: 5px;
-                        background-color: var(--vscode-sideBar-background);
-                        border-radius: 3px;
-                    }
-                    .remote-header:hover {
-                        background-color: var(--vscode-list-hoverBackground);
-                    }
-                    .remote-branches {
-                        margin-left: 20px;
-                        border-left: 1px solid var(--vscode-panel-border);
-                        padding-left: 10px;
-                        display: none;
-                    }
-                    .branch-item {
-                        display: flex;
-                        align-items: center;
-                        padding: 5px;
-                        cursor: pointer;
-                    }
-                    .branch-item:hover {
-                        background-color: var(--vscode-list-hoverBackground);
-                    }
-                    .branch-actions {
-                        margin-left: auto;
-                    }
+                        body {
+                            font-family: var(--vscode-font-family);
+                            color: var(--vscode-foreground);
+                            background-color: var(--vscode-editor-background);
+                            padding: 10px;
+                        }
+                        .branch-section {
+                            margin-bottom: 20px;
+                        }
+                        .remote-section {
+                            margin-bottom: 10px;
+                        }
+                        .remote-header {
+                            display: flex;
+                            align-items: center;
+                            cursor: pointer;
+                            padding: 5px;
+                            background-color: var(--vscode-sideBar-background);
+                            border-radius: 3px;
+                        }
+                        .remote-header:hover {
+                            background-color: var(--vscode-list-hoverBackground);
+                        }
+                        .remote-branches {
+                            margin-left: 20px;
+                            border-left: 1px solid var(--vscode-panel-border);
+                            padding-left: 10px;
+                            display: none;
+                        }
+                        .branch-item {
+                            display: flex;
+                            align-items: center;
+                            padding: 5px;
+                            cursor: pointer;
+                        }
+                        .branch-item:hover {
+                            background-color: var(--vscode-list-hoverBackground);
+                        }
+                        .branch-actions {
+                            margin-left: auto;
+                        }
 
-                    button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 6px 12px;
-                        cursor: pointer;
-                        margin-left: 4px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        transition: all 0.2s ease;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                    }
+                        button {
+                            background-color: var(--vscode-button-background);
+                            color: var(--vscode-button-foreground);
+                            border: none;
+                            padding: 6px 12px;
+                            cursor: pointer;
+                            margin-left: 4px;
+                            border-radius: 4px;
+                            font-size: 12px;
+                            transition: all 0.2s ease;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 4px;
+                        }
 
-                    button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                        transform: translateY(-1px);
-                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                    }
+                        button:hover {
+                            background-color: var(--vscode-button-hoverBackground);
+                            transform: translateY(-1px);
+                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        }
 
-                    button:active {
-                        transform: translateY(0);
-                        box-shadow: none;
-                    }
+                        button:active {
+                            transform: translateY(0);
+                            box-shadow: none;
+                        }
 
-                    button[disabled] {
-                        opacity: 0.5;
-                        cursor: not-allowed;
-                        transform: none;
-                        box-shadow: none;
-                    }
+                        button[disabled] {
+                            opacity: 0.5;
+                            cursor: not-allowed;
+                            transform: none;
+                            box-shadow: none;
+                        }
 
-                    button.danger {
-                        background-color: var(--vscode-errorForeground);
-                    }
+                        button.danger {
+                            background-color: var(--vscode-errorForeground);
+                        }
 
-                    button.primary {
-                        background-color: var(--vscode-button-background);
-                        font-weight: 500;
-                    }
+                        button.primary {
+                            background-color: var(--vscode-button-background);
+                            font-weight: 500;
+                        }
 
-                    .branch-icon {
-                        margin-right: 8px;
-                    }
-                    .toggle-icon {
-                        margin-right: 5px;
-                        transition: transform 0.2s;
-                    }
-                    h4 {
-                        margin: 0;
-                    }
-
-                    .modal {
-                        display: none;
-                        position: fixed;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        background: var(--vscode-editor-background);
-                        padding: 30px;
-                        border: 1px solid var(--vscode-panel-border);
-                        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-                        z-index: 1000;
-                        min-width: 350px;
-                        width: 50%;
-                        max-width: 500px;
-                    }
+                        .branch-icon {
+                            margin-right: 8px;
+                        }
                     
-                    .modal-buttons {
-                        margin-top: 15px;
-                        display: flex;
-                        justify-content: flex-end;
-                        gap: 10px;
-                    }
+                        h4 {
+                            margin: 0;
+                        }
+
+                        .modal {
+                            display: none;
+                            position: fixed;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            background: var(--vscode-editor-background);
+                            padding: 30px;
+                            border: 1px solid var(--vscode-panel-border);
+                            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                            z-index: 1000;
+                            min-width: 350px;
+                            width: 50%;
+                            max-width: 500px;
+                        }
                     
-                    .overlay {
-                        display: none;
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 999;
-                    }
+                        .modal-buttons {
+                            margin-top: 15px;
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 10px;
+                        }
+                        
+                        .overlay {
+                            display: none;
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: rgba(0,0,0,0.5);
+                            z-index: 999;
+                        }
                         .branch-form {
                             display: flex;
                             flex-direction: column;
@@ -357,6 +369,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             margin-top: 4px;
                         }
                         ${additionalStyles}
+
+                        .context-menu-item {
+                            display: flex;
+                            padding: 6px 12px;
+                            cursor: pointer;
+                            border-radius: 4px;
+                            transition: background-color 0.2s ease;
+                        }
                 </style>
             </head>
             <body>
@@ -521,8 +541,65 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
                         vscode.postMessage({ command: 'create', branch: \`\${type}/\${name}\` });
                     }
+
+                     function showRemoteBranchMenu(event, branch) {
+                        event.preventDefault();
+                        const menu = document.getElementById('remoteBranchMenu');
+                        menu.style.display = 'block';
+                        menu.style.left = event.pageX + 'px';
+                        menu.style.top = event.pageY + 'px';
+                        
+                        // Store the selected branch for use in menu actions
+                        window.selectedBranch = branch;
+                        
+                        // Close menu when clicking outside
+                        document.addEventListener('click', closeContextMenu);
+                        return false;
+                    }
+
+                    function closeContextMenu() {
+                        document.getElementById('remoteBranchMenu').style.display = 'none';
+                        document.removeEventListener('click', closeContextMenu);
+                    }
+
+                    function mergeWithDevelop() {
+                        vscode.postMessage({ 
+                            command: 'merge',
+                            source: window.selectedBranch,
+                            target: 'develop'
+                        });
+                        closeContextMenu();
+                    }
+
+                    function rebaseWithDevelop() {
+                        vscode.postMessage({ 
+                            command: 'rebase',
+                            source: window.selectedBranch,
+                            target: 'develop'
+                        });
+                        closeContextMenu();
+                    }
+
+                    function cherryPickBranch() {
+                        vscode.postMessage({ 
+                            command: 'cherryPick',
+                            branch: window.selectedBranch
+                        });
+                        closeContextMenu();
+                    }
                         
                 </script>
+                <div id="remoteBranchMenu" class="context-menu" style="display: none;">
+                    <div class="context-menu-item" onclick="mergeWithDevelop()">
+                        🔄 Merge with develop
+                    </div>
+                    <div class="context-menu-item" onclick="rebaseWithDevelop()">
+                        📥 Rebase with develop
+                    </div>
+                    <div class="context-menu-item" onclick="cherryPickBranch()">
+                        🍒 Cherry-pick
+                    </div>
+                </div>
             </body>
             </html>
         `;
@@ -530,7 +607,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
     private groupBranchesByPrefix(branches: string[]): Record<string, string[]> {
         const groups: Record<string, string[]> = {};
-        
+
         branches.forEach(branch => {
             const match = branch.match(/^([^/]+\/)?(.+)$/);
             if (match) {
@@ -613,9 +690,9 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                     webviewView.webview.html = this.generateLogHtml(refreshedLog, refreshedStatus);
                 } else if (message.command === 'showCommitDetails') {
                     const commitDetails = await this.gitService.getCommitDetails(message.hash);
-                    webviewView.webview.postMessage({ 
+                    webviewView.webview.postMessage({
                         command: 'updateCommitDetails',
-                        details: commitDetails 
+                        details: commitDetails
                     });
                 }
             });
@@ -636,7 +713,6 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         `;
     }
 
-    // Update the style section in generateLogHtml
     private generateLogHtml(log: string, status: { branch: string; user: string; timestamp: string }): string {
         return `
             <!DOCTYPE html>
@@ -695,7 +771,6 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                     </div>
                 </div>
                 ${this.formatLogWithStyle(log)}
-                <!-- ... rest of the HTML ... -->
             </body>
             </html>
         `;
