@@ -1,23 +1,9 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { BlameInfo, CommitInfo } from '../types/_index';
 
 const execAsync = promisify(exec);
-
-export interface CommitInfo {
-    hash: string;
-    author: string;
-    date: string;
-    message: string;
-}
-
-export interface BlameInfo {
-    hash: string;
-    author: string;
-    date: string;
-    line: number;
-    content: string;
-}
 
 export class GitService {
 

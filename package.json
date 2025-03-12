@@ -32,15 +32,7 @@
     "Other"
   ],
   "main": "./out/extension.js",
-  "activationEvents": [
-    "onView:gitOracleLog",
-    "onView:gitOracleCherryPick",
-    "onView:gitOracleBranches",
-    "onCommand:git-oracle.showLog",
-    "onCommand:git-oracle.cherryPick",
-    "onCommand:git-oracle.showBranches",
-    "onCommand:git-oracle.refreshView"
-  ],
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {

@@ -25,7 +25,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
     async getChildren(element?: BranchItem): Promise<BranchItem[]> {
         if (!element) {
-            // Root level
             return [
                 new BranchItem('Local Branches', 'local', vscode.TreeItemCollapsibleState.Expanded),
                 new BranchItem('Remote Branches', 'remote', vscode.TreeItemCollapsibleState.Expanded)
@@ -175,8 +174,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                 <div class="branch-subgroup">
                                     <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
                                         <span class="toggle-icon">▶</span>
-                                        <span class="group-name">${prefix.replace('/', '')}</span>
-                                        <span class="branch-count">${prefixBranches.length}</span>
+                                        <span class="group-name">${prefix.replace('/', ' ')}</span>
+                                        <span class="branch-count"> ${prefixBranches.length}</span>
                                     </div>
                                     <div id="${subGroupId}" class="group-content">
                                         ${prefixBranches.map(branch => `
@@ -229,7 +228,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-        // Update toggle function to handle arrow rotation
         const updatedToggleScript = `
             function toggleGroup(groupId) {
                 const element = document.getElementById(groupId);
@@ -246,7 +244,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-        // Update your HTML template
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -658,7 +655,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         branches.forEach(branch => {
             const match = branch.match(/^([^/]+\/)?(.+)$/);
             if (match) {
-                const prefix = match[1] || 'Other/';
+                const prefix = match[1] || match[0] || '/'; //before we search for shortcut then longone
                 if (!groups[prefix]) {
                     groups[prefix] = [];
                 }
