@@ -51,6 +51,18 @@
         "command": "git-oracle.refreshView",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "git-oracle.toggle",
+        "title": "Git Oracle: Toggle Show",
+        "icon": "$(eye)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "git-oracle.toggle",
+        "key": "cmd+l",
+        "mac": "cmd+l"
       }
     ],
     "menus": {
@@ -107,7 +119,7 @@
         },
         "gitOracle.maxCommitHistory": {
           "type": "number",
-          "default": 100,
+          "default": 25,
           "description": "Maximum number of commits to display in history view"
         },
         "gitOracle.showRelativeDates": {
