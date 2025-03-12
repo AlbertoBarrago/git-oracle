@@ -53,7 +53,14 @@ export class GitService {
     async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
         try {
             const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
-            const { stdout: user } = await execAsync('git config user.name', { cwd: this.getWorkspaceRoot() });
+            let user = '';
+            try {
+                const { stdout: gitUser } = await execAsync('git config user.name', { cwd: this.getWorkspaceRoot() });
+                user = gitUser.trim();
+            } catch {
+                user = 'Unknown User';
+                vscode.window.showWarningMessage('No user setted in repository');
+            }
             const timestamp = new Date().toLocaleString('en-US', { 
                 dateStyle: 'medium', 
                 timeStyle: 'medium' 
