@@ -301,7 +301,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 <div id="overlay" class="overlay"></div>
 
                 <div id="newBranchModal" class="modal">
-                    <h3>Create New Branch 🪄</h3>
+                    <h3>🪄 Create New Branch</h3>
                     <div class="branch-form">
                         <div class="form-group">
                             <label for="branchType">Branch Type</label>
