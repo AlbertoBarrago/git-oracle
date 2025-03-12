@@ -62,45 +62,129 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     }
 
     private generateBranchesHtml(localBranches: string[], remoteBranches: Map<string, string[]>): string {
-        const localBranchesHtml = localBranches.map(branch => `
-            <div class="branch-item">
-                <span class="branch-icon">🔸</span>
-                <span>${this.escapeHtml(branch)}</span>
-                <div class="branch-actions">
-                    <button onclick="switch('${this.escapeHtml(branch)}')">Switch</button>
-                    ${branch !== 'develop' ?
-                `<button onclick="confirmDelete('${this.escapeHtml(branch)}')">Delete</button>` :
-                '<button disabled title="Cannot delete develop branch" style="opacity: 0.5">Delete</button>'
-            }
-                </div>
-            </div>
-        `).join('');
-
-        // Generate remote branches HTML grouped by remote with collapsible sections
-        let remoteBranchesHtml = '';
-        remoteBranches.forEach((branches, remoteName) => {
-            const remoteId = `remote-${remoteName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            remoteBranchesHtml += `
-                <div class="remote-section">
-                    <div class="remote-header" onclick="toggleRemote('${remoteId}')">
+        // Group local branches by prefix
+        const groupedLocalBranches = this.groupBranchesByPrefix(localBranches);
+        
+        // Generate HTML for grouped local branches
+        const localBranchesHtml = Object.entries(groupedLocalBranches).map(([prefix, branches]) => {
+            const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            return `
+                <div class="branch-group">
+                    <div class="group-header" onclick="toggleGroup('${groupId}')">
                         <span class="toggle-icon">▶</span>
-                        <h4>${this.escapeHtml(remoteName)}</h4>
+                        <span class="group-name">${prefix.replace('/', '')}</span>
+                        <span class="branch-count">${branches.length}</span>
                     </div>
-                    <div id="${remoteId}" class="remote-branches">
+                    <div id="${groupId}" class="group-content">
                         ${branches.map(branch => `
                             <div class="branch-item">
-                                <span class="branch-icon">🔹</span>
+                                <span class="branch-icon">🔸</span>
                                 <span>${this.escapeHtml(branch)}</span>
                                 <div class="branch-actions">
-                                    <button onclick="switch('${remoteName}/${this.escapeHtml(branch)}')">Switch</button>
+                                    <button onclick="switchBranch('${this.escapeHtml(branch)}')">Switch</button>
+                                    ${branch !== 'develop' ?
+                                        `<button onclick="confirmDelete('${this.escapeHtml(branch)}')">Delete</button>` :
+                                        '<button disabled title="Cannot delete develop branch" style="opacity: 0.5">Delete</button>'
+                                    }
                                 </div>
                             </div>
                         `).join('')}
                     </div>
                 </div>
             `;
-        });
+        }).join('');
 
+        // Generate HTML for remote branches
+        const remoteBranchesHtml = Array.from(remoteBranches.entries()).map(([remote, branches]) => {
+            const remoteId = `remote-${remote.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const groupedRemoteBranches = this.groupBranchesByPrefix(branches);
+            
+            return `
+                <div class="remote-group">
+                    <div class="group-header" onclick="toggleGroup('${remoteId}')">
+                        <span class="toggle-icon">▶</span>
+                        <span class="group-name">${remote}</span>
+                        <span class="branch-count">${branches.length}</span>
+                    </div>
+                    <div id="${remoteId}" class="group-content">
+                        ${Object.entries(groupedRemoteBranches).map(([prefix, prefixBranches]) => {
+                            const subGroupId = `${remoteId}-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                            return `
+                                <div class="branch-subgroup">
+                                    <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
+                                        <span class="toggle-icon">▶</span>
+                                        <span class="group-name">${prefix.replace('/', '')}</span>
+                                        <span class="branch-count">${prefixBranches.length}</span>
+                                    </div>
+                                    <div id="${subGroupId}" class="group-content">
+                                        ${prefixBranches.map(branch => `
+                                            <div class="branch-item">
+                                                <span class="branch-icon">🔹</span>
+                                                <span>${this.escapeHtml(branch)}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Update styles to fix arrow rotation and add remote styles
+        const additionalStyles = `
+            .group-content {
+                display: none;
+                margin-left: 20px;
+                padding-left: 10px;
+                border-left: 1px solid var(--vscode-panel-border);
+            }
+            .toggle-icon {
+                display: inline-block;
+                width: 16px;
+                transition: transform 0.2s ease;
+            }
+            .toggle-icon.rotated {
+                transform: rotate(90deg);
+            }
+            .remote-group {
+                margin-bottom: 8px;
+            }
+            .branch-subgroup {
+                margin-left: 16px;
+            }
+            .subgroup-header {
+                display: flex;
+                align-items: center;
+                padding: 6px;
+                cursor: pointer;
+                opacity: 0.8;
+            }
+            .subgroup-header:hover {
+                opacity: 1;
+                background: var(--vscode-list-hoverBackground);
+            }
+        `;
+
+        // Update toggle function to handle arrow rotation
+        const updatedToggleScript = `
+            function toggleGroup(groupId) {
+                const element = document.getElementById(groupId);
+                const header = element.previousElementSibling;
+                const icon = header.querySelector('.toggle-icon');
+                
+                if (element.style.display === 'block') {
+                    element.style.display = 'none';
+                    icon.classList.remove('rotated');
+                } else {
+                    element.style.display = 'block';
+                    icon.classList.add('rotated');
+                }
+            }
+        `;
+
+        // Update your HTML template
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -272,6 +356,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             font-size: 12px;
                             margin-top: 4px;
                         }
+                        ${additionalStyles}
                 </style>
             </head>
             <body>
@@ -336,6 +421,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     
                 <script>
                     const vscode = acquireVsCodeApi();
+                    
+                    ${updatedToggleScript} 
                     
                     function refresh() {
                         vscode.postMessage({ command: 'refresh' });
@@ -439,6 +526,23 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
+    }
+
+    private groupBranchesByPrefix(branches: string[]): Record<string, string[]> {
+        const groups: Record<string, string[]> = {};
+        
+        branches.forEach(branch => {
+            const match = branch.match(/^([^/]+\/)?(.+)$/);
+            if (match) {
+                const prefix = match[1] || 'Other/';
+                if (!groups[prefix]) {
+                    groups[prefix] = [];
+                }
+                groups[prefix].push(branch);
+            }
+        });
+
+        return groups;
     }
 
     private generateErrorHtml(error: Error): string {
