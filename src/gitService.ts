@@ -169,6 +169,18 @@ export class GitService {
         }
     }
 
+    async createBranch(branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git branch ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error creating branch:', error);
+            throw new Error(`Failed to create branch '${branch}'`);
+        }
+    }
+
     async checkoutBranch(branch: string): Promise<void> {
         try {
             await execAsync(
@@ -178,6 +190,18 @@ export class GitService {
         } catch (error) {
             console.error('Error checking out branch:', error);
             throw new Error(`Failed to checkout branch '${branch}'`);
+        }
+    }
+
+    async switchBranch(branch: string): Promise<void>  {
+        try {
+            await execAsync(
+                `git switch ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error switching branch:', error);
+            throw new Error(`Failed to switch branch '${branch}'`);
         }
     }
 
