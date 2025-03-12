@@ -499,14 +499,20 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
         try {
             const log = await this.gitService.getLog();
-            webviewView.webview.html = this.generateLogHtml(log);
+            const status = await this.gitService.getGitStatus();
+            webviewView.webview.html = this.generateLogHtml(log, status);
 
             webviewView.webview.onDidReceiveMessage(async message => {
                 if (message.command === 'refresh') {
                     const refreshedLog = await this.gitService.getLog();
-                    webviewView.webview.html = this.generateLogHtml(refreshedLog);
+                    const refreshedStatus = await this.gitService.getGitStatus();
+                    webviewView.webview.html = this.generateLogHtml(refreshedLog, refreshedStatus);
                 } else if (message.command === 'showCommitDetails') {
-                    vscode.window.showInformationMessage(`Commit: ${message.hash}\nAuthor: ${message.author}\nMessage: ${message.message}`);
+                    const commitDetails = await this.gitService.getCommitDetails(message.hash);
+                    webviewView.webview.postMessage({ 
+                        command: 'updateCommitDetails',
+                        details: commitDetails 
+                    });
                 }
             });
         } catch (error) {
@@ -514,157 +520,81 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private generateLogHtml(log: string): string {
+    private formatLogWithStyle(log: string): string {
+        if (!log) {
+            return '<div class="empty-state">No commits to display</div>';
+        }
+
+        return `
+            <div class="git-log">
+                <pre>${log}</pre>
+            </div>
+        `;
+    }
+
+    // Update the style section in generateLogHtml
+    private generateLogHtml(log: string, status: { branch: string; user: string; timestamp: string }): string {
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Log</title>
+                <title>🌳 Git Log</title>
                 <style>
-                    body {
-                        font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
-                        background-color: var(--vscode-editor-background);
-                        padding: 0;
-                        margin: 0;
-                        line-height: 1.4;
+                    /* ... existing styles ... */
+                    .status-panel {
+                        background: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 6px;
+                        padding: 12px;
+                        margin: 16px 0;
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 16px;
                     }
-                    /* Proper CSS comment format */
-                    .log-container {
-                        overflow: auto;
-                        height: 100vh;
-                    }
-                    .commit-entry {
+                    .status-item {
                         display: flex;
-                        align-items: center;
-                        padding: 4px 8px;
-                        border-bottom: 1px solid transparent;
-                        cursor: pointer;
-                        position: relative;
+                        flex-direction: column;
+                        gap: 4px;
                     }
-                    .commit-entry:hover {
-                        background-color: var(--vscode-list-hoverBackground);
+                    .status-label {
+                        font-size: 12px;
+                        color: var(--vscode-descriptionForeground);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
                     }
-                    .commit-dot {
-                        color: #3794ff;
-                        font-size: 18px;
-                        margin-right: 8px;
-                        line-height: 0;
+                    .status-value {
+                        font-size: 14px;
+                        font-weight: 500;
+                        color: var(--vscode-foreground);
                     }
-                    .commit-graph {
+                    .branch-indicator {
                         color: #3794ff;
                         font-family: monospace;
-                        margin-right: 8px;
-                        display: inline-block;
-                        line-height: 1;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .commit-message {
-                        color: var(--vscode-foreground);
-                        flex-grow: 1;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                    }
-                    .commit-author {
-                        color: var(--vscode-descriptionForeground);
-                        margin-left: 8px;
-                        font-size: 0.9em;
-                    }
-                    .branch-tag {
-                        display: inline-block;
-                        background-color: var(--vscode-badge-background);
-                        color: var(--vscode-badge-foreground);
-                        border-radius: 10px;
-                        padding: 1px 6px;
-                        font-size: 0.8em;
-                        margin-left: 8px;
-                    }
-                    .commit-line {
-                        position: absolute;
-                        left: 9px;
-                        width: 2px;
-                        background-color: #3794ff;
-                        opacity: 0.6;
-                        z-index: 0;
-                        top: 0;
-                        bottom: 0;
-                    }
-                    .commit-container {
-                        position: relative;
                     }
                 </style>
             </head>
             <body>
-                <div class="log-container">
-                    ${this.formatLogWithStyle(log)}
+                <h2>🌳 Git Log</h2>
+                <div class="status-panel">
+                    <div class="status-item">
+                        <span class="status-label">Current Branch</span>
+                        <span class="status-value branch-indicator">${this.escapeHtml(status.branch)}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">User</span>
+                        <span class="status-value">${this.escapeHtml(status.user)}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Updated</span>
+                        <span class="status-value">${this.escapeHtml(status.timestamp)}</span>
+                    </div>
                 </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    function showCommitDetails(hash, author, message) {
-                        vscode.postMessage({ 
-                            command: 'showCommitDetails',
-                            hash: hash,
-                            author: author,
-                            message: message
-                        });
-                    }
-                </script>
+                ${this.formatLogWithStyle(log)}
+                <!-- ... rest of the HTML ... -->
             </body>
             </html>
         `;
-    }
-
-    private formatLogWithStyle(log: string): string {
-        const lines = log.split('\n');
-        let formattedLog = '';
-
-        for (const line of lines) {
-            // Updated regex to match the new git log format
-            const match = line.match(/^(.*?)([a-f0-9]+) (\d{4}-\d{2}-\d{2}) \| ([^[]+)(?:\((.*?)\))? \[(.+?)\]$/);
-
-            if (match) {
-                const graphChars = match[1] || '';
-                const hash = match[2];
-                const date = match[3];
-                const message = match[4].trim();
-                const branchInfo = match[5];
-                const author = match[6];
-
-                let branchTag = '';
-                if (branchInfo) {
-                    const headMatch = branchInfo.match(/HEAD -> ([^,]+)/);
-                    if (headMatch) {
-                        branchTag = `<span class="branch-tag">${this.escapeHtml(headMatch[1])}</span>`;
-                    }
-                }
-
-                formattedLog += `
-                    <div class="commit-entry" onclick="showCommitDetails('${hash}', '${this.escapeHtml(author)}', '${this.escapeHtml(message)}')">
-                        <pre class="commit-graph">${this.formatGraphChars(graphChars)}</pre>
-                        <span class="commit-message">${this.escapeHtml(message)}${branchTag}</span>
-                        <span class="commit-author">${this.escapeHtml(author)}</span>
-                    </div>
-                `;
-            }
-        }
-
-        return formattedLog;
-    }
-
-    private formatGraphChars(graphChars: string): string {
-        if (!graphChars) return '';
-        console.log(graphChars)
-        return graphChars
-            .replace(/\*/g, '●')
-            .replace(/\|/g, '│')
-            .replace(/[/]/g, '╱')
-            .replace(/[\\]/g, '╲')
-            .replace(/ /g, '&nbsp;');
     }
 
     private generateErrorHtml(error: Error): string {

@@ -54,13 +54,33 @@ export class GitService {
     async getLog(): Promise<string> {
         try {
             const { stdout } = await execAsync(
-                'git log --graph --pretty=format:"%h %ad | %s%d [%an]" --date=short',
+                'git log --graph --oneline --decorate --all --abbrev-commit',
                 { cwd: this.getWorkspaceRoot() }
             );
             return stdout;
         } catch (error) {
             console.error('Error fetching git log:', error);
             throw new Error('Failed to fetch git log');
+        }
+    }
+
+    async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
+        try {
+            const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
+            const { stdout: user } = await execAsync('git config user.name', { cwd: this.getWorkspaceRoot() });
+            const timestamp = new Date().toLocaleString('en-US', { 
+                dateStyle: 'medium', 
+                timeStyle: 'medium' 
+            });
+
+            return {
+                branch: branch.trim(),
+                user: user.trim(),
+                timestamp
+            };
+        } catch (error) {
+            console.error('Error getting git status:', error);
+            throw error;
         }
     }
 
