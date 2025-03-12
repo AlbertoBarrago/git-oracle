@@ -46,7 +46,10 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 <span>${this.escapeHtml(branch)}</span>
                 <div class="branch-actions">
                     <button onclick="checkout('${this.escapeHtml(branch)}')">Checkout</button>
-                    <button onclick="deleteBranch('${this.escapeHtml(branch)}')">Delete</button>
+                    ${branch !== 'develop' ? 
+                        `<button onclick="confirmDelete('${this.escapeHtml(branch)}')">Delete</button>` : 
+                        '<button disabled title="Cannot delete develop branch" style="opacity: 0.5">Delete</button>'
+                    }
                 </div>
             </div>
         `).join('');
@@ -146,6 +149,36 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     h4 {
                         margin: 0;
                     }
+                        .modal {
+                        display: none;
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: var(--vscode-editor-background);
+                        padding: 20px;
+                        border: 1px solid var(--vscode-panel-border);
+                        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                        z-index: 1000;
+                    }
+                    
+                    .modal-buttons {
+                        margin-top: 15px;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 10px;
+                    }
+                    
+                    .overlay {
+                        display: none;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0,0,0,0.5);
+                        z-index: 999;
+                    }
                 </style>
             </head>
             <body>
@@ -160,6 +193,16 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     <h3>Remote Branches</h3>
                     ${remoteBranchesHtml}
                 </div>
+
+                <div id="deleteModal" class="modal">
+                    <h3>Confirm Delete</h3>
+                    <p>Are you sure you want to delete branch: <span id="branchToDelete"></span>?</p>
+                    <div class="modal-buttons">
+                        <button onclick="cancelDelete()">Cancel</button>
+                        <button onclick="proceedDelete()" style="background: var(--vscode-errorForeground);">Delete</button>
+                    </div>
+                </div>
+                <div id="overlay" class="overlay"></div>
     
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -191,6 +234,27 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             element.style.display = 'block';
                             icon.textContent = '▼';
                             icon.style.transform = 'rotate(90deg)';
+                        }
+                    }
+                        let currentBranch = '';
+                    
+                    function confirmDelete(branch) {
+                        currentBranch = branch;
+                        document.getElementById('branchToDelete').textContent = branch;
+                        document.getElementById('deleteModal').style.display = 'block';
+                        document.getElementById('overlay').style.display = 'block';
+                    }
+                    
+                    function cancelDelete() {
+                        document.getElementById('deleteModal').style.display = 'none';
+                        document.getElementById('overlay').style.display = 'none';
+                        currentBranch = '';
+                    }
+                    
+                    function proceedDelete() {
+                        if (currentBranch) {
+                            vscode.postMessage({ command: 'delete', branch: currentBranch });
+                            cancelDelete();
                         }
                     }
                 </script>
