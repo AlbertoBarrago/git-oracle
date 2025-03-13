@@ -4,6 +4,7 @@ import { GitService } from '../services/gitService';
 export class LogViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
+
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         webviewView.webview.options = {
             enableScripts: true,
@@ -15,18 +16,13 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             const status = await this.gitService.getGitStatus();
             webviewView.webview.html = this.generateLogHtml(log, status);
 
-            webviewView.webview.onDidReceiveMessage(async message => {
-                if (message.command === 'refresh') {
-                    const refreshedLog = await this.gitService.getLog();
-                    const refreshedStatus = await this.gitService.getGitStatus();
-                    webviewView.webview.html = this.generateLogHtml(refreshedLog, refreshedStatus);
-                } else if (message.command === 'showCommitDetails') {
-                    const commitDetails = await this.gitService.getCommitDetails(message.hash);
-                    webviewView.webview.postMessage({
-                        command: 'updateCommitDetails',
-                        details: commitDetails
-                    });
+            webviewView.webview.onDidReceiveMessage(async (message) => {
+                if (message.command !== 'refreshLog') {
+                    return;
                 }
+                const refreshedLog = await this.gitService.getLog();
+                const refreshedStatus = await this.gitService.getGitStatus();
+                webviewView.webview.html = this.generateLogHtml(refreshedLog, refreshedStatus);
             });
         } catch (error) {
             webviewView.webview.html = this.generateErrorHtml(error as Error);
