@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
+import {gitChangeEmitter} from '../extension'
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {  }
@@ -22,29 +23,29 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.createBranch(message.branch);
                             vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
                         }
                         break;
                     case 'refresh':
                         try {
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
                         }
                         break;
                     case 'switch':
                         try {
-                            const isRemoteBranch = message.branch.includes('/');
+                            const isRemoteBranch = message.branch?.includes('/');
                             if (isRemoteBranch) {
-                                // For remote branches, create a local tracking branch
                                 await this.gitService.checkoutRemoteBranch(message.branch);
                                 vscode.window.showInformationMessage(`Created and switched to tracking branch for '${message.branch}'`);
                             } else {
                                 await this.gitService.checkoutBranch(message.branch);
                                 vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
                             }
+                            gitChangeEmitter.fire();
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to checkout branch: ${error}`);
                         }
@@ -53,7 +54,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.deleteBranch(message.branch);
                             vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
                         }
@@ -62,7 +63,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.deleteRemoteBranch(message.branch);
                             vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
                         }
@@ -74,7 +75,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async refreshView(): Promise<string> {
+    async refresh(): Promise<string> {
         const refreshedLocal = await this.gitService.getLocalBranches();
         const refreshedRemote = await this.gitService.getRemoteBranches();
         return this.generateBranchesHtml(refreshedLocal, refreshedRemote);
@@ -128,7 +129,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             `;
         }).join('');
 
-        // Generate HTML for remote branches
         const remoteBranchesHtml = Array.from(remoteBranches.entries()).map(([remote, branches]) => {
             const remoteId = `remote-${remote.replace(/[^a-zA-Z0-9]/g, '-')}`;
             const groupedRemoteBranches = this.groupBranchesByPrefix(branches);
@@ -256,6 +256,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     switchItem.className = 'context-menu-item';
                     switchItem.innerHTML = '🔄 Switch to Branch';
                     switchItem.onclick = () => {
+                        console.log(branch)
                         switchBranch(branch);
                         hideContextMenu();
                     };
@@ -296,7 +297,6 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 }
             }
     
-            // Update existing functions to use the new context menu
             function showBranchMenu(event, branch) {
                 showContextMenu(event, branch, false);
             }
@@ -304,17 +304,29 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             function showRemoteBranchMenu(event, branch) {
                 showContextMenu(event, branch, true);
             }
+
+            function switchBranch(branch) {
+                vscode.postMessage({ command: 'switch', branch });
+            }
+
+            function toggleRemote(remoteId) {
+                const element = document.getElementById(remoteId);
+                const header = element.previousElementSibling;
+                const icon = header.querySelector('.toggle-icon');
+                
+                if (element.style.display === 'block') {
+                    element.style.display = 'none';
+                    icon.textContent = '▶';
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    element.style.display = 'block';
+                    icon.textContent = '▼';
+                    icon.style.transform = 'rotate(90deg)';
+                }
+            }
         `;
 
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>🚇 Branches</title>
-                <style>
-                        body {
+        const styles = `body {
                             font-family: var(--vscode-font-family);
                             color: var(--vscode-foreground);
                             background-color: var(--vscode-editor-background);
@@ -482,11 +494,9 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             cursor: pointer;
                             border-radius: 4px;
                             transition: background-color 0.2s ease;
-                        }
-                </style>
-            </head>
-            <body>
-                <h2>🚇 Branches</h2>
+                        }`
+
+        const body = ` <h2>🚇 Branches</h2>
                 <p>Here you can manage your Git branches: create new ones, switch between branches, and delete existing branches.</p>
 
                 <button onclick="showNewBranchModal()" class="primary">Create Branch</button>
@@ -543,8 +553,21 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             <button class="primary" onclick="createNewBranch()">Create Branch</button>
                         </div>
                     </div>
-                </div>
-    
+                </div>`                
+
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>🚇 Branches</title>
+                <style>
+                    ${styles}
+                </style>
+            </head>
+            <body>
+                ${body}
                 <script>
                     const vscode = acquireVsCodeApi();
                     
@@ -554,33 +577,13 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({ command: 'refresh' });
                     }
     
-                    // In the script section, modify the switch function name to switchBranch
-                    function switchBranch(branch) {
-                        vscode.postMessage({ command: 'switchBranch', branch });
-                    }
-    
                     function deleteBranch(branch) {
                         if (confirm('Are you sure you want to delete this branch?')) {
                             vscode.postMessage({ command: 'delete', branch });
                         }
                     }
-                    
-                    function toggleRemote(remoteId) {
-                        const element = document.getElementById(remoteId);
-                        const header = element.previousElementSibling;
-                        const icon = header.querySelector('.toggle-icon');
-                        
-                        if (element.style.display === 'block') {
-                            element.style.display = 'none';
-                            icon.textContent = '▶';
-                            icon.style.transform = 'rotate(0deg)';
-                        } else {
-                            element.style.display = 'block';
-                            icon.textContent = '▼';
-                            icon.style.transform = 'rotate(90deg)';
-                        }
-                    }
-                        let currentBranch = '';
+                  
+                    let currentBranch = '';
                     
                    function confirmDelete(branch, isRemote = false) {
                         currentBranch = branch;
@@ -674,6 +677,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         document.removeEventListener('click', closeContextMenu);
                     }
 
+                    function switchBranchRemote() {
+                        vscode.postMessage({ 
+                            command: 'switch',
+                            branch: window.selectedBranch
+                        });
+                        closeContextMenu();
+                    }
+
                     function mergeWithDevelop() {
                         vscode.postMessage({ 
                             command: 'merge',
@@ -704,9 +715,15 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         confirmDelete(window.selectedBranch, true);
                         closeContextMenu();
                     }
+
+                  
    
                 </script>
                 <div id="remoteBranchMenu" class="context-menu" style="display: none;">
+                    <div class="context-menu-item" onclick="switchBranchRemote()">
+                        🎛️ Swicth Branch
+                    </div>
+                    <hr /> 
                     <div class="context-menu-item" onclick="mergeWithDevelop()">
                         🔄 Merge with develop
                     </div>
@@ -717,7 +734,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         🍒 Cherry-pick
                     </div>
                     <div class="context-menu-item" onclick="removeRemoteBranch()"> 
-                        🗑️ Delete (Be wise...)
+                        🗑️ Delete <small>(Be wise...)</small>
                     </div>
                 </div>
             </body>

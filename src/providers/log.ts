@@ -1,32 +1,40 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
+import { gitChangeEmitter } from '../extension';
 
 export class LogViewProvider implements vscode.WebviewViewProvider {
+    private _view?: vscode.WebviewView;
+
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
-
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
+        this._view = webviewView;
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
 
-        try {
-            const log = await this.gitService.getLog();
-            const status = await this.gitService.getGitStatus();
-            webviewView.webview.html = this.generateLogHtml(log, status);
+        gitChangeEmitter.event(async () => {
+            await this.updateView();
+        });
 
-            webviewView.webview.onDidReceiveMessage(async (message) => {
-                if (message.command !== 'refreshLog') {
-                    return;
-                }
-                const refreshedLog = await this.gitService.getLog();
-                const refreshedStatus = await this.gitService.getGitStatus();
-                webviewView.webview.html = this.generateLogHtml(refreshedLog, refreshedStatus);
-            });
+        try {
+            await this.updateView();
         } catch (error) {
             webviewView.webview.html = this.generateErrorHtml(error as Error);
         }
+    }
+
+    private async updateView() {
+        if (this._view) {
+            const log = await this.gitService.getLog();
+            const status = await this.gitService.getGitStatus();
+            this._view.webview.html = this.generateLogHtml(log, status);
+        }
+    }
+
+    async refresh(): Promise<void> {
+        await this.updateView();
     }
 
     private formatLogWithStyle(log: string): string {
@@ -50,7 +58,6 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>🌳 Git Log</title>
                 <style>
-                    /* ... existing styles ... */
                     .status-panel {
                         background: var(--vscode-editor-inactiveSelectionBackground);
                         border-radius: 6px;

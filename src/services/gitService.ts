@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { BlameInfo, CommitInfo } from '../types/_index';
+import { BlameInfo, CommitInfo } from '../types/global';
 import { getGitOracleConfig } from '../utils/config';
 
 const execAsync = promisify(exec);
@@ -16,6 +16,7 @@ export class GitService {
      * @private
      */
     private async executeGitCommand(command: string): Promise<string> {
+        await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
         try {
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${command}`,
@@ -154,6 +155,7 @@ export class GitService {
      */
     async getLocalBranches(): Promise<string[]> {
         try {
+            await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
             const { stdout } = await execAsync(
                 'git branch --format="%(refname:short)"',
                 { cwd: this.getWorkspaceRoot() }
@@ -170,12 +172,7 @@ export class GitService {
      * @returns Map of remote names to their branches
      */
     async getRemoteBranches(): Promise<Map<string, string[]>> {
-
-        // README: For now we are fetching just from local origin, because for certain remote the VPN 
-        // or some other network issue might cause the fetch to fail
         await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
-
-
         try {
             const { stdout } = await execAsync(
                 'git branch -r --format="%(refname:short)"',
@@ -306,7 +303,10 @@ export class GitService {
      * @returns Object containing status information
      */
     async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
+
         try {
+
+
             const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
             let user = '';
             try {

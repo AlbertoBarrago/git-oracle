@@ -1,6 +1,6 @@
-import {BranchViewProvider} from './branchItem';
+import {BranchViewProvider} from './branches';
 import {CherryPickViewProvider} from './cherryPick';
-import {LogViewProvider} from './logProvider';
+import {LogViewProvider} from './log';
 
 
 export {

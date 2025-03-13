@@ -119,7 +119,7 @@
         },
         "gitOracle.maxCommitHistory": {
           "type": "number",
-          "default": 25,
+          "default": 50,
           "description": "Maximum number of commits to display in history view"
         },
         "gitOracle.showRelativeDates": {
