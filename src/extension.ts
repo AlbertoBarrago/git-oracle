@@ -12,13 +12,16 @@ import { Views } from './providers/views';
  */
 export function activate(context: vscode.ExtensionContext) {
     const gitService = new GitService();
-    const views = new Views(context.extensionUri, gitService);
+    const views = new Views();
 
     const logViewProvider = new LogViewProvider(context.extensionUri, gitService);
     const branchViewProvider = new BranchViewProvider(context.extensionUri, gitService);
     const cherryPickViewProvider = new CherryPickViewProvider(context.extensionUri, gitService);
+    const providers = [logViewProvider, branchViewProvider, cherryPickViewProvider];
 
-    let disposables = vscode.commands.registerCommand('git-oracle.toggle', async () => {
+    views.addProviders(providers);
+
+    const disposables = vscode.commands.registerCommand('git-oracle.toggle', async () => {
         await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
         
         const config = vscode.workspace.getConfiguration('workbench');
@@ -29,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    let refreshCommand = vscode.commands.registerCommand('git-oracle.refreshView', () => {
+    const refreshCommand = vscode.commands.registerCommand('git-oracle.refreshView', () => {
         views.refresh();
     });
 
@@ -41,5 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
         refreshCommand
     );
 }
+
+/**
+ * Event emitter for when a git change is detected.
+ */
+export const gitChangeEmitter = new vscode.EventEmitter<void>();
 
 export function deactivate() {}

@@ -40,7 +40,6 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             <tr>
                 <td style="width: 80px;">${commit.hash.substring(0, 7)} - ${commit.author}</td>
                 <td style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px;" title="${commit.date}">${commit.date}</td>
-                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(commit.message)}</td>
                 <td style="width: 100px;">
                     <button onclick="cherryPick('${commit.hash}')">Cherry Pick</button>
                 </td>
@@ -127,7 +126,6 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
                             <tr>
                                 <th>Commit</th>
                                 <th>Date</th>
-                                <th>Message</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
