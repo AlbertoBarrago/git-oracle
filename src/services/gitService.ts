@@ -76,6 +76,22 @@ export class GitService {
     }
 
     /**
+     * Checks out to a specified remote branch
+     * @param fullBranch 
+     */
+    async checkoutRemoteBranch(fullBranch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git checkout -b ${fullBranch} --track`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error checking out remote branch:', error);
+            throw new Error(`Failed to checkout remote branch '${fullBranch}'`);
+        }
+    }
+
+    /**
      * Switches to a specified branch
      * @param branch - Name of the branch to switch to
      */
@@ -108,6 +124,31 @@ export class GitService {
     }
 
     /**
+     * Deletes a remote branch
+     * @param branch - Name of the branch to delete
+     */
+    async deleteRemoteBranch(fullBranch: string): Promise<void> {
+        try {
+            // Split the full branch name into remote and branch parts
+            const [remote, ...branchParts] = fullBranch.split('/');
+            const branchName = branchParts.join('/');
+            const originName = remote.split('-')[1];
+    
+            if (!originName || !branchName) {
+                throw new Error('Invalid remote branch format. Expected: remote/branch');
+            }
+    
+            await execAsync(
+                `git push -d ${originName} ${branchName}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error deleting remote branch:', error);
+            throw new Error(`Failed to delete remote branch '${fullBranch}': ${error}`);
+        }
+    }
+
+    /**
      * Gets all local branches
      * @returns Array of local branch names
      */
@@ -129,6 +170,12 @@ export class GitService {
      * @returns Map of remote names to their branches
      */
     async getRemoteBranches(): Promise<Map<string, string[]>> {
+
+        // README: For now we are fetching just from local origin, because for certain remote the VPN 
+        // or some other network issue might cause the fetch to fail
+        await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
+
+
         try {
             const { stdout } = await execAsync(
                 'git branch -r --format="%(refname:short)"',
@@ -288,6 +335,7 @@ export class GitService {
     /**
      * Gets blame information for a file
      * @param filePath - Path to the file
+     * @deprecated Better use gitBlame plugin
      * @returns Array of blame information
      */
     async getBlameInfo(filePath: string): Promise<BlameInfo[]> {
