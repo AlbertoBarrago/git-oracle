@@ -1,54 +1,8 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
-import {BranchItem} from '../commons/branchItem';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
-    private _onDidChangeTreeData: vscode.EventEmitter<BranchItem | undefined | null | void> = new vscode.EventEmitter<BranchItem | undefined | null | void>();
-    readonly onDidChangeTreeData: vscode.Event<BranchItem | undefined | null | void> = this._onDidChangeTreeData.event;
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { 
-        vscode.commands.registerCommand('git-oracle.mergeWithDevelop', (branch: BranchItem) => {
-            this.gitService.mergeBranches(branch.label, 'develop');
-        });
-
-        vscode.commands.registerCommand('git-oracle.rebaseWithDevelop', (branch: BranchItem) => {
-            this.gitService.rebaseBranches(branch.label, 'develop');
-        });
-
-        vscode.commands.registerCommand('git-oracle.cherryPickBranch', (branch: BranchItem) => {
-            this.gitService.cherryPick(branch.label);
-        });
-    }
-
-    getTreeItem(element: BranchItem): vscode.TreeItem {
-        return element;
-    }
-
-    async getChildren(element?: BranchItem): Promise<BranchItem[]> {
-        if (!element) {
-            return [
-                new BranchItem('Local Branches', 'local', vscode.TreeItemCollapsibleState.Expanded),
-                new BranchItem('Remote Branches', 'remote', vscode.TreeItemCollapsibleState.Expanded)
-            ];
-        }
-
-        if (element.type === 'local') {
-            const branches = await this.gitService.getLocalBranches();
-            return branches.map(branch => new BranchItem(branch, 'branch', vscode.TreeItemCollapsibleState.None));
-        }
-
-        if (element.type === 'remote') {
-            const remoteBranches = await this.gitService.getRemoteBranches();
-            return Array.from(remoteBranches.values())
-                .flat()
-                .map(branch => new BranchItem(branch, 'remoteBranch', vscode.TreeItemCollapsibleState.None));
-        }
-
-        return [];
-    }
-
-    refresh(): void {
-        this._onDidChangeTreeData.fire();
-    }
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {  }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         webviewView.webview.options = {
