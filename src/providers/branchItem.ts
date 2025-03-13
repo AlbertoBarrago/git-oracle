@@ -82,7 +82,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div id="${groupId}" class="group-content">
                         ${branches.map(branch => `
-                            <div class="branch-item">
+                            <div class="branch-item" oncontextmenu="event.preventDefault(); showBranchMenu(event, '${this.escapeHtml(branch)}')">
                                 <span class="branch-icon">
                                     ${branch.includes('feature') ? '✨' :
                                         branch.includes('bugfix') ? '🐛' :
@@ -180,6 +180,34 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 opacity: 1;
                 background: var(--vscode-list-hoverBackground);
             }
+            .context-menu {
+                position: fixed;
+                background: var(--vscode-menu-background);
+                border: 1px solid var(--vscode-menu-border);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                padding: 4px 0;
+                z-index: 1000;
+                border-radius: 4px;
+            }
+            .context-menu-item {
+                padding: 6px 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--vscode-menu-foreground);
+            }
+            .context-menu-item:hover {
+                background: var(--vscode-menu-selectionBackground);
+                color: var(--vscode-menu-selectionForeground);
+            }
+            .context-menu-item.danger {
+                color: var(--vscode-errorForeground);
+            }
+            .context-menu-item.danger:hover {
+                background: var(--vscode-errorForeground);
+                color: var(--vscode-menu-selectionForeground);
+            }
         `;
 
         const updatedToggleScript = `
@@ -195,6 +223,70 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     element.style.display = 'block';
                     icon.classList.add('rotated');
                 }
+            }
+    
+            let activeContextMenu = null;
+    
+            function showContextMenu(event, branch, isRemote = false) {
+                event.preventDefault();
+                hideContextMenu();
+    
+                const menu = document.createElement('div');
+                menu.className = 'context-menu';
+    
+                if (!isRemote) {
+                    const switchItem = document.createElement('div');
+                    switchItem.className = 'context-menu-item';
+                    switchItem.innerHTML = '🔄 Switch to Branch';
+                    switchItem.onclick = () => {
+                        switchBranch(branch);
+                        hideContextMenu();
+                    };
+                    menu.appendChild(switchItem);
+    
+                    if (branch !== 'develop') {
+                        const deleteItem = document.createElement('div');
+                        deleteItem.className = 'context-menu-item danger';
+                        deleteItem.innerHTML = '🗑️ Delete Branch';
+                        deleteItem.onclick = () => {
+                            confirmDelete(branch);
+                            hideContextMenu();
+                        };
+                        menu.appendChild(deleteItem);
+                    }
+                }
+    
+                document.body.appendChild(menu);
+                activeContextMenu = menu;
+    
+                const rect = menu.getBoundingClientRect();
+                const x = event.clientX;
+                const y = event.clientY;
+    
+                // Adjust menu position if it would go off screen
+                const adjustedX = x + rect.width > window.innerWidth ? window.innerWidth - rect.width : x;
+                const adjustedY = y + rect.height > window.innerHeight ? window.innerHeight - rect.height : y;
+    
+                menu.style.left = adjustedX + 'px';
+                menu.style.top = adjustedY + 'px';
+    
+                document.addEventListener('click', hideContextMenu);
+            }
+    
+            function hideContextMenu() {
+                if (activeContextMenu) {
+                    activeContextMenu.remove();
+                    activeContextMenu = null;
+                }
+            }
+    
+            // Update existing functions to use the new context menu
+            function showBranchMenu(event, branch) {
+                showContextMenu(event, branch, false);
+            }
+    
+            function showRemoteBranchMenu(event, branch) {
+                showContextMenu(event, branch, true);
             }
         `;
 
