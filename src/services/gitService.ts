@@ -2,11 +2,37 @@ import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { BlameInfo, CommitInfo } from '../types/_index';
+import { getGitOracleConfig } from '../utils/config';
 
 const execAsync = promisify(exec);
 
 export class GitService {
+    private config = getGitOracleConfig();
 
+    /**
+     * Executes a git command and returns its output
+     * @param command - The git command to execute
+     * @returns Promise containing the command output
+     * @private
+     */
+    private async executeGitCommand(command: string): Promise<string> {
+        try {
+            const { stdout } = await execAsync(
+                `${this.config.gitpath} ${command}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+            return stdout;
+        } catch (error) {
+            console.error(`Error executing git command: ${command}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Gets the root path of the current workspace
+     * @returns The workspace root path
+     * @private
+     */
     private getWorkspaceRoot(): string {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
@@ -15,12 +41,198 @@ export class GitService {
         return workspaceFolders[0].uri.fsPath;
     }
 
-    async getCommitHistory(): Promise<CommitInfo[]> {
+    // Branch Operations
+
+    /**
+     * Creates a new branch
+     * @param branch - Name of the branch to create
+     */
+    async createBranch(branch: string): Promise<void> {
         try {
-            const { stdout } = await execAsync(
-                'git log --pretty=format:"%H|%an|%ad|%s" --date=relative',
+            await execAsync(
+                `git branch ${branch}`,
                 { cwd: this.getWorkspaceRoot() }
             );
+        } catch (error) {
+            console.error('Error creating branch:', error);
+            throw new Error(`Failed to create branch '${branch}'`);
+        }
+    }
+
+    /**
+     * Checks out to a specified branch
+     * @param branch - Name of the branch to checkout
+     */
+    async checkoutBranch(branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git checkout ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error checking out branch:', error);
+            throw new Error(`Failed to checkout branch '${branch}'`);
+        }
+    }
+
+    /**
+     * Checks out to a specified remote branch
+     * @param fullBranch 
+     */
+    async checkoutRemoteBranch(fullBranch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git checkout -b ${fullBranch} --track`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error checking out remote branch:', error);
+            throw new Error(`Failed to checkout remote branch '${fullBranch}'`);
+        }
+    }
+
+    /**
+     * Switches to a specified branch
+     * @param branch - Name of the branch to switch to
+     */
+    async switchBranch(branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git switch ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error switching branch:', error);
+            throw new Error(`Failed to switch branch '${branch}'`);
+        }
+    }
+
+    /**
+     * Deletes a specified branch
+     * @param branch - Name of the branch to delete
+     */
+    async deleteBranch(branch: string): Promise<void> {
+        try {
+            await execAsync(
+                `git branch -D ${branch}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error deleting branch:', error);
+            throw new Error(`Failed to delete branch '${branch}'`);
+        }
+    }
+
+    /**
+     * Deletes a remote branch
+     * @param branch - Name of the branch to delete
+     */
+    async deleteRemoteBranch(fullBranch: string): Promise<void> {
+        try {
+            // Split the full branch name into remote and branch parts
+            const [remote, ...branchParts] = fullBranch.split('/');
+            const branchName = branchParts.join('/');
+            const originName = remote.split('-')[1];
+    
+            if (!originName || !branchName) {
+                throw new Error('Invalid remote branch format. Expected: remote/branch');
+            }
+    
+            await execAsync(
+                `git push -d ${originName} ${branchName}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+        } catch (error) {
+            console.error('Error deleting remote branch:', error);
+            throw new Error(`Failed to delete remote branch '${fullBranch}': ${error}`);
+        }
+    }
+
+    /**
+     * Gets all local branches
+     * @returns Array of local branch names
+     */
+    async getLocalBranches(): Promise<string[]> {
+        try {
+            const { stdout } = await execAsync(
+                'git branch --format="%(refname:short)"',
+                { cwd: this.getWorkspaceRoot() }
+            );
+            return stdout.split('\n').filter(branch => branch.trim() !== '');
+        } catch (error) {
+            console.error('Error fetching local git branches:', error);
+            throw new Error('Failed to fetch local git branches');
+        }
+    }
+
+    /**
+     * Gets all remote branches grouped by remote
+     * @returns Map of remote names to their branches
+     */
+    async getRemoteBranches(): Promise<Map<string, string[]>> {
+
+        // README: For now we are fetching just from local origin, because for certain remote the VPN 
+        // or some other network issue might cause the fetch to fail
+        await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
+
+
+        try {
+            const { stdout } = await execAsync(
+                'git branch -r --format="%(refname:short)"',
+                { cwd: this.getWorkspaceRoot() }
+            );
+            
+            const remoteMap = new Map<string, string[]>();
+            
+            stdout.split('\n')
+                .filter(branch => branch.trim() !== '')
+                .forEach(branch => {
+                    const parts = branch.split('/');
+                    if (parts.length >= 2) {
+                        const remoteName = parts[0];
+                        const branchName = parts.slice(1).join('/');
+                        
+                        if (!remoteMap.has(remoteName)) {
+                            remoteMap.set(remoteName, []);
+                        }
+                        remoteMap.get(remoteName)?.push(branchName);
+                    }
+                });
+                
+            return remoteMap;
+        } catch (error) {
+            console.error('Error fetching remote git branches:', error);
+            throw new Error('Failed to fetch remote git branches');
+        }
+    }
+
+    /**
+     * Gets all branches (both local and remote)
+     * @returns Array of all branch names
+     */
+    async getBranches(): Promise<string[]> {
+        try {
+            const localBranches: string[] = await this.getLocalBranches();
+            const remoteMap = await this.getRemoteBranches();
+            const remoteBranches: string[] = Array.from(remoteMap.values()).flat();
+            return [...localBranches, ...remoteBranches] as string[];
+        } catch (error) {
+            console.error('Error fetching git branches:', error);
+            throw new Error('Failed to fetch git branches');
+        }
+    }
+
+    // Commit Operations
+
+    /**
+     * Gets the commit history
+     * @returns Array of commit information
+     */
+    async getCommitHistory(): Promise<CommitInfo[]> {
+        try {
+            const dateFormat = this.config.showRelativeDates ? '--date=relative' : '--date=format:%Y-%m-%d %H:%M:%S';
+            const command = `log -n ${this.config.maxCommitHistory} --pretty=format:"%H|%an|%ad|%s" ${dateFormat}`;
+            const stdout = await this.executeGitCommand(command);
 
             return stdout.split('\n').map(line => {
                 const [hash, author, date, ...messageParts] = line.split('|');
@@ -37,19 +249,62 @@ export class GitService {
         }
     }
 
+    /**
+     * Gets the git log with graph visualization
+     * @returns Formatted git log string
+     */
     async getLog(): Promise<string> {
         try {
-            const { stdout } = await execAsync(
-                'git log --graph --oneline --decorate --all --abbrev-commit',
-                { cwd: this.getWorkspaceRoot() }
-            );
-            return stdout;
+            const command = `log -n ${this.config.maxCommitHistory} --graph --oneline --decorate --all --abbrev-commit`;
+            return await this.executeGitCommand(command);
         } catch (error) {
             console.error('Error fetching git log:', error);
             throw new Error('Failed to fetch git log');
         }
     }
 
+    /**
+     * Gets details of a specific commit
+     * @param commitHash - Hash of the commit
+     * @returns Detailed commit information
+     */
+    async getCommitDetails(commitHash: string): Promise<string> {
+        try {
+            const { stdout } = await execAsync(
+                `git show --pretty=format:"%h %s%n%b" --patch ${commitHash}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+            return stdout;
+        } catch (error) {
+            console.error('Error fetching commit details:', error);
+            throw new Error('Failed to fetch commit details');
+        }
+    }
+
+    /**
+     * Cherry-picks a commit to the current branch
+     * @param commitHash - Hash of the commit to cherry-pick
+     * @returns Boolean indicating success
+     */
+    async cherryPick(commitHash: string): Promise<boolean> {
+        try {
+            await execAsync(
+                `git cherry-pick ${commitHash}`,
+                { cwd: this.getWorkspaceRoot() }
+            );
+            return true;
+        } catch (error) {
+            console.error('Error during cherry-pick:', error);
+            return false;
+        }
+    }
+
+    // Repository Status Operations
+
+    /**
+     * Gets the current git status including branch, user and timestamp
+     * @returns Object containing status information
+     */
     async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
         try {
             const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
@@ -77,6 +332,12 @@ export class GitService {
         }
     }
 
+    /**
+     * Gets blame information for a file
+     * @param filePath - Path to the file
+     * @deprecated Better use gitBlame plugin
+     * @returns Array of blame information
+     */
     async getBlameInfo(filePath: string): Promise<BlameInfo[]> {
         try {
             const { stdout } = await execAsync(
@@ -112,137 +373,13 @@ export class GitService {
         }
     }
 
-    async getCommitDetails(commitHash: string): Promise<string> {
-        try {
-            const { stdout } = await execAsync(
-                `git show --pretty=format:"%h %s%n%b" --patch ${commitHash}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-            return stdout;
-        } catch (error) {
-            console.error('Error fetching commit details:', error);
-            throw new Error('Failed to fetch commit details');
-        }
-    }
+    // Branch Integration Operations
 
-    async cherryPick(commitHash: string): Promise<boolean> {
-        try {
-            await execAsync(
-                `git cherry-pick ${commitHash}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-            return true;
-        } catch (error) {
-            console.error('Error during cherry-pick:', error);
-            return false;
-        }
-    }
-
-    async getLocalBranches(): Promise<string[]> {
-        try {
-            const { stdout } = await execAsync(
-                'git branch --format="%(refname:short)"',
-                { cwd: this.getWorkspaceRoot() }
-            );
-            return stdout.split('\n').filter(branch => branch.trim() !== '');
-        } catch (error) {
-            console.error('Error fetching local git branches:', error);
-            throw new Error('Failed to fetch local git branches');
-        }
-    }
-
-    async getRemoteBranches(): Promise<Map<string, string[]>> {
-        try {
-            const { stdout } = await execAsync(
-                'git branch -r --format="%(refname:short)"',
-                { cwd: this.getWorkspaceRoot() }
-            );
-            
-            const remoteMap = new Map<string, string[]>();
-            
-            stdout.split('\n')
-                .filter(branch => branch.trim() !== '')
-                .forEach(branch => {
-                    const parts = branch.split('/');
-                    if (parts.length >= 2) {
-                        const remoteName = parts[0];
-                        const branchName = parts.slice(1).join('/');
-                        
-                        if (!remoteMap.has(remoteName)) {
-                            remoteMap.set(remoteName, []);
-                        }
-                        remoteMap.get(remoteName)?.push(branchName);
-                    }
-                });
-                
-            return remoteMap;
-        } catch (error) {
-            console.error('Error fetching remote git branches:', error);
-            throw new Error('Failed to fetch remote git branches');
-        }
-    }
-
-    async createBranch(branch: string): Promise<void> {
-        try {
-            await execAsync(
-                `git branch ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error creating branch:', error);
-            throw new Error(`Failed to create branch '${branch}'`);
-        }
-    }
-
-    async checkoutBranch(branch: string): Promise<void> {
-        try {
-            await execAsync(
-                `git checkout ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error checking out branch:', error);
-            throw new Error(`Failed to checkout branch '${branch}'`);
-        }
-    }
-
-    async switchBranch(branch: string): Promise<void>  {
-        try {
-            await execAsync(
-                `git switch ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error switching branch:', error);
-            throw new Error(`Failed to switch branch '${branch}'`);
-        }
-    }
-
-    async deleteBranch(branch: string): Promise<void> {
-        try {
-            await execAsync(
-                `git branch -D ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error deleting branch:', error);
-            throw new Error(`Failed to delete branch '${branch}'`);
-        }
-    }
-
-    async getBranches(): Promise<string[]> {
-        try {
-            const localBranches: string[] = await this.getLocalBranches();
-            const remoteMap = await this.getRemoteBranches();
-            const remoteBranches: string[] = Array.from(remoteMap.values()).flat();
-            return [...localBranches, ...remoteBranches] as string[];
-        } catch (error) 
-        {
-            console.error('Error fetching git branches:', error);
-            throw new Error('Failed to fetch git branches');
-        }
-    }
-
+    /**
+     * Merges two branches
+     * @param label - Source branch label
+     * @param branch - Target branch name
+     */
     async mergeBranches(label: string, branch: string): Promise<void> {
         try {
             await execAsync(
@@ -255,7 +392,12 @@ export class GitService {
         }
     }
 
-    async rebaseBranches(label:string, branch: string): Promise<void> {
+    /**
+     * Rebases two branches
+     * @param label - Source branch label
+     * @param branch - Target branch name
+     */
+    async rebaseBranches(label: string, branch: string): Promise<void> {
         try {
             await execAsync(
                 `git rebase ${label} ${branch}`,
