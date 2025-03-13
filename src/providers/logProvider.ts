@@ -29,6 +29,12 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    async refresh(): Promise<string> {
+        const refreshedLog = await this.gitService.getLog();
+        const refreshedStatus = await this.gitService.getGitStatus();
+        return this.generateLogHtml(refreshedLog, refreshedStatus);
+    }
+
     private formatLogWithStyle(log: string): string {
         if (!log) {
             return '<div class="empty-state">No commits to display</div>';

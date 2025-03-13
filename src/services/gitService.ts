@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { BlameInfo, CommitInfo } from '../types/_index';
+import { BlameInfo, CommitInfo } from '../types/global';
 import { getGitOracleConfig } from '../utils/config';
 
 const execAsync = promisify(exec);

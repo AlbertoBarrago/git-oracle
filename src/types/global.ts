@@ -13,7 +13,6 @@ interface BlameInfo {
     content: string;
 }
 
-
 export {
     BlameInfo,
     CommitInfo

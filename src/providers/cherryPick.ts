@@ -30,6 +30,11 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    async refresh(): Promise<string> {
+        const refreshedCommits = await this.gitService.getCommitHistory();
+        return this.generateCherryPickHtml(refreshedCommits);
+    }
+
     private generateCherryPickHtml(commits: { hash: string; author: string; date: string; message: string; }[]): string {
         const commitRows = commits.map(commit => `
             <tr>

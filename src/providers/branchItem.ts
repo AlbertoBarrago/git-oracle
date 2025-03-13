@@ -22,14 +22,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.createBranch(message.branch);
                             vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
                         }
                         break;
                     case 'refresh':
                         try {
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
                         }
@@ -53,7 +53,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.deleteBranch(message.branch);
                             vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
                         }
@@ -62,7 +62,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         try {
                             await this.gitService.deleteRemoteBranch(message.branch);
                             vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                            webviewView.webview.html = await this.refreshView()
+                            webviewView.webview.html = await this.refresh()
                         } catch (error) {
                             vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
                         }
@@ -74,7 +74,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async refreshView(): Promise<string> {
+    async refresh(): Promise<string> {
         const refreshedLocal = await this.gitService.getLocalBranches();
         const refreshedRemote = await this.gitService.getRemoteBranches();
         return this.generateBranchesHtml(refreshedLocal, refreshedRemote);
