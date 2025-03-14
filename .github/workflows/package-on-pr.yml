@@ -29,7 +29,8 @@ jobs:
         run: yarn package
 
       - name: Upload VSIX as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.3
         with:
           name: git-oracle-v${{ steps.package-version.outputs.version }}
           path: '*.vsix'
+          retention-days: 90
