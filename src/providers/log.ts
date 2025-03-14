@@ -4,8 +4,10 @@ import { gitChangeEmitter } from '../extension';
 
 export class LogViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
+    private terminal: vscode.Terminal | undefined;
 
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
+
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
@@ -13,6 +15,16 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
+
+        const status = await this.gitService.getGitStatus();
+        const log = await this.gitService.getLog();
+        webviewView.webview.html = this.generateLogHtml(log, status);
+
+        webviewView.webview.onDidReceiveMessage(async (message) => {
+            if (message.command === 'switchToTerminal') {
+                this.showTerminalLog();
+            }
+        });
 
         gitChangeEmitter.event(async () => {
             await this.updateView();
@@ -23,6 +35,17 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             webviewView.webview.html = this.generateErrorHtml(error as Error);
         }
+    }
+
+    private async showTerminalLog() {
+        if (!this.terminal) {
+            this.terminal = vscode.window.createTerminal('Git Oracle Log');
+        }
+        
+        this.terminal.show();
+        this.terminal.sendText('clear');
+        this.terminal.sendText(`cd ${this.gitService.getWorkspaceRoot()}`);
+        this.terminal.sendText('git log --graph --pretty=format:"%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)" --all');
     }
 
     private async updateView() {
@@ -44,7 +67,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
         return `
             <div class="git-log">
-                <pre>${log}</pre>
+                <pre style="color: var(--vscode-terminal-foreground);">${log}</pre>
             </div>
         `;
     }
@@ -87,7 +110,28 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                         color: #3794ff;
                         font-family: monospace;
                     }
+                     .git-log pre {
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        white-space: pre;
+                        word-wrap: normal;
+                        padding: 10px;
+                        margin: 0;
+                        background: var(--vscode-editor-background);
+                        overflow-x: auto;
+                        line-height: 1.4;
+                    }
                 </style>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const terminalButton = document.getElementById('switchToTerminal');
+                        if (terminalButton) {
+                            terminalButton.addEventListener('click', () => {
+                                vscode.postMessage({ command: 'switchToTerminal' });
+                            });
+                        }
+                    });
+                </script>
             </head>
             <body>
                 <h2>🌳 Git Log</h2>
@@ -148,5 +192,9 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+
+    dispose() {
+        this.terminal?.dispose();
     }
 }

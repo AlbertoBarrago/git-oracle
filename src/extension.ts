@@ -21,7 +21,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     views.addProviders(providers);
 
-    const disposables = vscode.commands.registerCommand('git-oracle.toggle', async () => {
+    // Register commands
+    const toggleDisposable = vscode.commands.registerCommand('git-oracle.toggle', async () => {
         await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
         
         const config = vscode.workspace.getConfiguration('workbench');
@@ -36,13 +37,38 @@ export function activate(context: vscode.ExtensionContext) {
         views.refresh();
     });
 
+    // Register terminal log command
+    const showLogCommand = vscode.commands.registerCommand('git-oracle.showLog', () => {
+        const terminal = vscode.window.createTerminal('Git Oracle Log');
+        terminal.show();
+        
+        const workspaceRoot = gitService.getWorkspaceRoot();
+        if (workspaceRoot) {
+            terminal.sendText(`cd "${workspaceRoot}"`);
+            terminal.sendText('clear');
+            terminal.sendText('git log --graph --pretty=format:"%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)" --all');
+        } else {
+            vscode.window.showErrorMessage('No workspace folder found');
+        }
+    });
+
+    // Register all providers and commands
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('gitOracleLog', logViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider),
-        disposables,
+        toggleDisposable,
+        showLogCommand,
         refreshCommand
     );
+
+    // Register git change detection
+    const fileSystemWatcher = vscode.workspace.createFileSystemWatcher('**/.git/**');
+    fileSystemWatcher.onDidChange(() => gitChangeEmitter.fire());
+    fileSystemWatcher.onDidCreate(() => gitChangeEmitter.fire());
+    fileSystemWatcher.onDidDelete(() => gitChangeEmitter.fire());
+    
+    context.subscriptions.push(fileSystemWatcher);
 }
 
 /**

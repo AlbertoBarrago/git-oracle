@@ -34,7 +34,7 @@ export class GitService {
      * @returns The workspace root path
      * @private
      */
-    private getWorkspaceRoot(): string {
+    getWorkspaceRoot(): string {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             throw new Error('No workspace folder found');
@@ -252,11 +252,10 @@ export class GitService {
      */
     async getLog(): Promise<string> {
         try {
-            const command = `log -n ${this.config.maxCommitHistory} --graph --oneline --decorate --all --abbrev-commit`;
+            const command = 'log --graph --pretty=format:"%h -%d %s (%cr) <%an>" --abbrev-commit --date=relative --all';
             return await this.executeGitCommand(command);
         } catch (error) {
-            console.error('Error fetching git log:', error);
-            throw new Error('Failed to fetch git log');
+            throw new Error(`Failed to get git log: ${error}`);
         }
     }
 

@@ -3,7 +3,7 @@
   "displayName": "Git Oracle",
   "author": "alBz <albertobarrago@gmail.com>",
   "description": "🔮 Enhanced Git integration for VS Code with powerful history visualization, blame tracking, interactive cherry-picking, and branch management. Simplify your Git workflow with magical features!",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "publisher": "alBz",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -37,8 +37,10 @@
     "commands": [
       {
         "command": "git-oracle.showLog",
-        "title": "Git Oracle: Show Log"
-      },
+        "title": "Git Oracle: Show Log in Terminal",
+        "category": "Git Oracle",
+        "icon": "$(terminal)"
+     },
       {
         "command": "git-oracle.cherryPick",
         "title": "Git Oracle: Cherry Pick"
@@ -67,6 +69,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "git-oracle.showLog",
+          "when": "view == gitOracleLog",
+          "group": "navigation"
+        },
         {
           "command": "git-oracle.refreshView",
           "when": "view == gitOracleBranches || view == gitOracleLog || view == gitOracleCherryPick",
@@ -138,7 +145,10 @@
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package",
-    "publish": "vsce publish"
+    "publish": "vsce publish",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version"
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
@@ -149,10 +159,13 @@
     "@typescript-eslint/parser": "^4.26.0",
     "@vscode/vsce": "^3.2.2",
     "eslint": "^7.27.0",
-    "glob": "^7.1.7",
+    "glob": "10.3.10",
     "mocha": "^8.4.0",
     "typescript": "^4.3.2",
     "vscode-test": "^1.5.2"
+  },
+  "resolutions": {
+    "glob": "10.3.10"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
