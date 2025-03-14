@@ -28,3 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrate terminal view for log with actions
 - Improved watcher all over modules
 
+
+## [0.0.4] - 2023-11-29
+
+### Added
+- Changed handling for create branches 
+- Improved sync control for webviews
+
