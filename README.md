@@ -2,6 +2,9 @@
 
 Git Oracle enhances your VS Code Git experience with powerful visualization tools and streamlined workflows.
 
+## Demo 
+![Demo](./images/demo.gif)
+
 ## ✨ Features
 
 ### 📊 Commit Graph
