@@ -29,22 +29,24 @@ jobs:
         id: package-version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Check if version exists
-        id: check-version
+      - name: Check if release exists
+        id: check-release
         run: |
-          if git rev-parse "v${{ steps.package-version.outputs.version }}" >/dev/null 2>&1; then
+          if curl --silent --fail --location \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ steps.package-version.outputs.version }}"; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Package Extension
-        if: steps.check-version.outputs.exists != 'true'
+        if: steps.check-release.outputs.exists != 'true'
         run: npm run package
 
       - name: Create Release
         id: create_release
-        if: steps.check-version.outputs.exists != 'true'
+        if: steps.check-release.outputs.exists != 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
