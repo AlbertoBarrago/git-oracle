@@ -15,18 +15,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '16'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: yarn install
+        run: npm install
 
       - name: Get version
         id: package-version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Package Extension
-        run: yarn package
+        run: npm run package
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v4

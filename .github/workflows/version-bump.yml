@@ -26,13 +26,13 @@ jobs:
           node-version: '16'
 
       - name: Install dependencies
-        run: yarn install
+        run: npm install
 
       - name: Bump version
-        run: yarn version:${{ github.event.inputs.version_type }}
+        run: npm run version:${{ github.event.inputs.version_type }}
 
       - name: Create Package
-        run: yarn package
+        run: npm run package
 
       - name: Get version
         id: package-version
@@ -47,7 +47,7 @@ jobs:
           git push
 
       - name: Create Release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -57,7 +57,7 @@ jobs:
           prerelease: false
 
       - name: Upload VSIX to Release
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
