@@ -44,6 +44,10 @@ Access Git Oracle features through:
 
 MIT License - See LICENSE file for details
 
+## Publish Alert 
+This extension is not published on the VS Code Marketplace.
+[🚀 Download](https://marketplace.visualstudio.com/items?itemName=AlbertoBarrago.git-oracle)
+
 ## Buy me a beer 
 If you find this extension useful, you can buy me a beer at:
 https://buymeacoffee.com/albz
