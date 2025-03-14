@@ -29,22 +29,12 @@ jobs:
         run: npm run package
 
       - name: Create Release
-        uses: actions/create-release@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Upload VSIX to Release
         uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.VERSION }}
-          files: "*.vsix"
+          name: Release v${{ env.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v4
