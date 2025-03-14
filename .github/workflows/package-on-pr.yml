@@ -28,6 +28,13 @@ jobs:
       - name: Package Extension
         run: npm run package
 
+      - name: Create and push tag
+        run: |
+          git config --local user.email "albertobarrago@gmail.com"
+          git config --local user.name "alBz"
+          git tag -a v${{ steps.package-version.outputs.version }} -m "Release v${{ steps.package-version.outputs.version }}"
+          git push origin v${{ steps.package-version.outputs.version }}
+
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v4
         with:
