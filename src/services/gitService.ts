@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { BlameInfo, CommitInfo } from '../types/global';
+import { CommitInfo } from '../types/global';
 import { getGitOracleConfig } from '../utils/config';
+
 
 const execAsync = promisify(exec);
 
 export class GitService {
     private config = getGitOracleConfig();
-
+    private fetchInterval: NodeJS.Timer | undefined;
     /**
      * Executes a git command and returns its output
      * @param command - The git command to execute
@@ -16,7 +17,6 @@ export class GitService {
      * @private
      */
     private async executeGitCommand(command: string): Promise<string> {
-        await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
         try {
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${command}`,
@@ -25,6 +25,31 @@ export class GitService {
             return stdout;
         } catch (error) {
             console.error(`Error executing git command: ${command}`, error);
+            throw error;
+        }
+    }
+
+    public startAutoFetch() {
+        this.fetch();
+        
+        // Set up 5-minute interval for auto-fetch
+        this.fetchInterval = setInterval(async () => {
+            try {
+                await this.fetch();
+            } catch (error) {
+                console.error('Auto-fetch failed:', error);
+            }
+        }, this.config.fetchTimer);
+    }
+
+    /**
+     * Fetches the latest changes from the remote repository
+     */
+    private async fetch(): Promise<void> {
+        try {
+            await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
+        } catch (error) {
+            console.error('Error fetching:', error);
             throw error;
         }
     }
@@ -48,47 +73,46 @@ export class GitService {
      * Creates a new branch
      * @param branch - Name of the branch to create
      */
-    async createBranch(branch: string): Promise<void> {
-        try {
-            await execAsync(
-                `git branch ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error creating branch:', error);
-            throw new Error(`Failed to create branch '${branch}'`);
+    async showCreateBranchDialog(): Promise<string | undefined> {
+        const branchType = await vscode.window.showQuickPick(
+            ['feature', 'bugfix', 'hotfix', 'release'],
+            {
+                placeHolder: 'Select branch type'
+            }
+        );
+
+        if (!branchType) {
+            return undefined;
         }
+
+        const branchName = await vscode.window.showInputBox({
+            placeHolder: 'e.g., add-user-authentication',
+            prompt: 'Enter branch name (lowercase letters, numbers, and hyphens only)',
+            validateInput: (value) => {
+                if (!value) {
+                    return 'Branch name is required';
+                }
+                if (!/^[a-z0-9-]+$/.test(value)) {
+                    return 'Branch name can only contain lowercase letters, numbers, and hyphens';
+                }
+                return null;
+            }
+        });
+
+        if (!branchName) {
+            return undefined;
+        }
+
+        const fullBranchName = `${branchType}/${branchName}`;
+        await this.createBranch(fullBranchName);
+        return fullBranchName;
     }
 
-    /**
-     * Checks out to a specified branch
-     * @param branch - Name of the branch to checkout
-     */
-    async checkoutBranch(branch: string): Promise<void> {
+    async createBranch(branchName: string): Promise<void> {
         try {
-            await execAsync(
-                `git checkout ${branch}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
+            await this.executeGitCommand(`checkout -b ${branchName}`);
         } catch (error) {
-            console.error('Error checking out branch:', error);
-            throw new Error(`Failed to checkout branch '${branch}'`);
-        }
-    }
-
-    /**
-     * Checks out to a specified remote branch
-     * @param fullBranch 
-     */
-    async checkoutRemoteBranch(fullBranch: string): Promise<void> {
-        try {
-            await execAsync(
-                `git checkout -b ${fullBranch} --track`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-        } catch (error) {
-            console.error('Error checking out remote branch:', error);
-            throw new Error(`Failed to checkout remote branch '${fullBranch}'`);
+            throw new Error(`Failed to create branch: ${error}`);
         }
     }
 
@@ -155,7 +179,7 @@ export class GitService {
      */
     async getLocalBranches(): Promise<string[]> {
         try {
-            await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
+            this.fetch();
             const { stdout } = await execAsync(
                 'git branch --format="%(refname:short)"',
                 { cwd: this.getWorkspaceRoot() }
@@ -172,7 +196,7 @@ export class GitService {
      * @returns Map of remote names to their branches
      */
     async getRemoteBranches(): Promise<Map<string, string[]>> {
-        await execAsync('git fetch', { cwd: this.getWorkspaceRoot() });
+        this.fetch();
         try {
             const { stdout } = await execAsync(
                 'git branch -r --format="%(refname:short)"',
@@ -209,6 +233,7 @@ export class GitService {
      */
     async getBranches(): Promise<string[]> {
         try {
+            this.fetch();
             const localBranches: string[] = await this.getLocalBranches();
             const remoteMap = await this.getRemoteBranches();
             const remoteBranches: string[] = Array.from(remoteMap.values()).flat();
@@ -227,6 +252,7 @@ export class GitService {
      */
     async getCommitHistory(): Promise<CommitInfo[]> {
         try {
+            this.fetch();
             const dateFormat = this.config.showRelativeDates ? '--date=relative' : '--date=format:%Y-%m-%d %H:%M:%S';
             const command = `log -n ${this.config.maxCommitHistory} --pretty=format:"%H|%an|%ad|%s" ${dateFormat}`;
             const stdout = await this.executeGitCommand(command);
@@ -252,28 +278,11 @@ export class GitService {
      */
     async getLog(): Promise<string> {
         try {
+            this.fetch();
             const command = 'log --graph --pretty=format:"%h -%d %s (%cr) <%an>" --abbrev-commit --date=relative --all';
             return await this.executeGitCommand(command);
         } catch (error) {
             throw new Error(`Failed to get git log: ${error}`);
-        }
-    }
-
-    /**
-     * Gets details of a specific commit
-     * @param commitHash - Hash of the commit
-     * @returns Detailed commit information
-     */
-    async getCommitDetails(commitHash: string): Promise<string> {
-        try {
-            const { stdout } = await execAsync(
-                `git show --pretty=format:"%h %s%n%b" --patch ${commitHash}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-            return stdout;
-        } catch (error) {
-            console.error('Error fetching commit details:', error);
-            throw new Error('Failed to fetch commit details');
         }
     }
 
@@ -302,10 +311,7 @@ export class GitService {
      * @returns Object containing status information
      */
     async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
-
         try {
-
-
             const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
             let user = '';
             try {
@@ -328,47 +334,6 @@ export class GitService {
         } catch (error) {
             console.error('Error getting git status:', error);
             throw error;
-        }
-    }
-
-    /**
-     * Gets blame information for a file
-     * @param filePath - Path to the file
-     * @deprecated Better use gitBlame plugin
-     * @returns Array of blame information
-     */
-    async getBlameInfo(filePath: string): Promise<BlameInfo[]> {
-        try {
-            const { stdout } = await execAsync(
-                `git blame --line-porcelain ${filePath}`,
-                { cwd: this.getWorkspaceRoot() }
-            );
-
-            const lines = stdout.split('\n');
-            const blameInfo: BlameInfo[] = [];
-            let currentInfo: Partial<BlameInfo> = {};
-            let lineNumber = 1;
-
-            for (const line of lines) {
-                if (line.startsWith('author ')) {
-                    currentInfo.author = line.substring(7);
-                } else if (line.startsWith('author-time ')) {
-                    const timestamp = parseInt(line.substring(12));
-                    currentInfo.date = new Date(timestamp * 1000).toLocaleString();
-                } else if (line.startsWith(currentInfo.hash || '')) {
-                    currentInfo.content = line.substring(line.indexOf(')') + 1);
-                    currentInfo.line = lineNumber++;
-                    blameInfo.push(currentInfo as BlameInfo);
-                    currentInfo = {};
-                } else if (line.match(/^[0-9a-f]{40}/)) {
-                    currentInfo.hash = line.substring(0, 40);
-                }
-            }
-
-            return blameInfo;
-        } catch (error) {
-            console.error('Error fetching blame info:', error);
-            throw new Error('Failed to fetch blame information');
         }
     }
 
@@ -405,6 +370,12 @@ export class GitService {
         } catch (error) {
             console.error('Error rebasing branches:', error);
             throw new Error(`Failed to rebase branches '${label} ${branch}'`);
+        }
+    }
+
+    dispose() {
+        if (this.fetchInterval) {
+            clearInterval(this.fetchInterval);
         }
     }
 }

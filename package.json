@@ -55,6 +55,11 @@
         "command": "git-oracle.toggle",
         "title": "Git Oracle: Toggle Show",
         "icon": "$(eye)"
+      },
+      {
+        "command": "git-oracle.createBranch",
+        "title": "Create Branch",
+        "icon": "$(add)"
       }
     ],
     "keybindings": [
@@ -74,6 +79,11 @@
         {
           "command": "git-oracle.refreshView",
           "when": "view == gitOracleBranches || view == gitOracleLog || view == gitOracleCherryPick",
+          "group": "navigation"
+        },
+        {
+          "command": "git-oracle.createBranch",
+          "when": "view == gitOracleBranches",
           "group": "navigation"
         }
       ]
@@ -130,6 +140,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show dates in relative format (e.g., '2 days ago') instead of absolute format"
+        },
+        "gitOracle.autoFetchTimer": {
+          "type": "number",
+          "default": 300000,
+          "description": "Time in milliseconds to wait before fetching new commits"
         }
       }
     }
