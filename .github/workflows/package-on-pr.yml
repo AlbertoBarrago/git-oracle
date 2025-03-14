@@ -23,7 +23,7 @@ jobs:
 
       - name: Get version
         id: package-version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
       - name: Package Extension
         run: npm run package
@@ -33,25 +33,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.package-version.outputs.version }}
-          release_name: Release v${{ steps.package-version.outputs.version }}
+          tag_name: v${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
           draft: false
           prerelease: false
-          - name: Upload VSIX to Release
 
-      - name: Create Tag
-        uses: actions/create-tag@v4
+      - name: Upload VSIX to Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.package-version.outputs.version }}
-          release_name: Release v${{ steps.package-version.outputs.version }}
-          draft: false
-          prerelease: false
+          tag_name: v${{ env.VERSION }}
+          files: "*.vsix"
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: git-oracle-v${{ steps.package-version.outputs.version }}
+          name: git-oracle-v${{ env.VERSION }}
           path: '*.vsix'
           retention-days: 90
