@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
+import {gitChangeEmitter} from '../extension'
 
 export class CherryPickViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
@@ -9,6 +10,10 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
+
+        gitChangeEmitter.event(async () => {
+            await this.refresh();
+        });
 
         try {
             const commits = await this.gitService.getCommitHistory();

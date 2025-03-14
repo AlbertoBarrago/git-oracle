@@ -13,6 +13,7 @@ import { Views } from './providers/views';
 export function activate(context: vscode.ExtensionContext) {
     const gitService = new GitService();
     const views = new Views();
+    let refreshTimeout: NodeJS.Timeout | undefined;
 
     const logViewProvider = new LogViewProvider(context.extensionUri, gitService);
     const branchViewProvider = new BranchViewProvider(context.extensionUri, gitService);
@@ -21,7 +22,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     views.addProviders(providers);
 
-    // Register commands
     const toggleDisposable = vscode.commands.registerCommand('git-oracle.toggle', async () => {
         await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
         
@@ -37,7 +37,23 @@ export function activate(context: vscode.ExtensionContext) {
         views.refresh();
     });
 
-    // Register terminal log command
+    const addBranchCommand = vscode.commands.registerCommand('git-oracle.createBranch', async () => {
+        try {
+            const branchName = await gitService.showCreateBranchDialog();
+            if (branchName) {
+                vscode.window.showInformationMessage(`Created branch '${branchName}'`);
+                if (refreshTimeout) {
+                    clearTimeout(refreshTimeout);
+                }
+                refreshTimeout = setTimeout(() => {
+                    gitChangeEmitter.fire();
+                }, 500);
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
+        }
+    });
+
     const showLogCommand = vscode.commands.registerCommand('git-oracle.showLog', () => {
         const terminal = vscode.window.createTerminal('Git Oracle Log');
         terminal.show();
@@ -59,18 +75,24 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider),
         toggleDisposable,
         showLogCommand,
-        refreshCommand
+        refreshCommand,
+        addBranchCommand
     );
 
-    // Register git change detection
     const fileSystemWatcher = vscode.workspace.createFileSystemWatcher('**/.git/**');
-    fileSystemWatcher.onDidChange(() => gitChangeEmitter.fire());
-    fileSystemWatcher.onDidCreate(() => gitChangeEmitter.fire());
-    fileSystemWatcher.onDidDelete(() => gitChangeEmitter.fire());
-    
-    context.subscriptions.push(fileSystemWatcher);
-}
+    const debouncedRefresh = () => {
+        if (refreshTimeout) {
+            clearTimeout(refreshTimeout);
+        }
+        refreshTimeout = setTimeout(() => {
+            gitChangeEmitter.fire();
+        }, 500);
+    };
 
+    fileSystemWatcher.onDidChange(debouncedRefresh);
+    fileSystemWatcher.onDidCreate(debouncedRefresh);
+    fileSystemWatcher.onDidDelete(debouncedRefresh);
+}
 /**
  * Event emitter for when a git change is detected.
  */
