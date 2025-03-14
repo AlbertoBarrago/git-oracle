@@ -4,14 +4,17 @@ Git Oracle enhances your VS Code Git experience with powerful visualization tool
 
 ## ✨ Features
 
-### 📜 Git Log
-View your commit history with customizable formatting and filtering options.
+### 📊 Commit Graph
+Visualize your commit history as a graph, with customizable options.
 
-### 🍒 Cherry-picking
+### 📈 Branch Graph
+Visualize your branch history as a graph, with customizable options.
+
+### 🎨 Commit Visualization
+View individual commits with detailed information and diffs.
+
+### 🍒 Cherry-picking 
 Easily select and apply specific commits from other branches.
-
-### 🌳 Branch Management
-Create, switch, and manage branches with an intuitive interface.
 
 ## 🧰 Requirements
 
