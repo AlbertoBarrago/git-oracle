@@ -21,11 +21,15 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Get version
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Package Extension
         run: yarn package
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v3
         with:
-          name: git-oracle-extension
+          name: git-oracle-v${{ steps.package-version.outputs.version }}
           path: '*.vsix'
