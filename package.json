@@ -141,10 +141,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "test:old": "node ./out/test/runTest.js",
-    "test:new": "mocha out/test/**/*.test.js",
-    "package": "vsce package",
-    "publish": "vsce publishrm",
+    "package": "npx @vscode/vsce package",
+    "publish": "npx @vscode/vsce publish",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
@@ -169,6 +167,6 @@
   },
   "engines": {
     "vscode": "^1.84.0",
-     "node": ">=16"
+     "node": ">=18"
    }
 }
