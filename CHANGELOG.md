@@ -5,33 +5,72 @@ All notable changes to the Git Oracle extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.1] - 2023-11-30
+## [0.0.1] - 2025-03-11
+
+### Added
+- v0.0.1  Initial release
+- v0.0.2  Basic Git repository information display
+- v0.0.2  Git log visualization
+- v0.0.2  Git branch management
+- v0.0.2  Git commit history display
+- v0.0.2  Git branch operations (create, delete, checkout)
+- v0.0.2  Git repository status display
+- v0.0.3  Integrate terminal view for log with actions
+- v0.0.4  Changed handling for create branches
+- v0.0.4  Removed old modal for branch management
+- v0.0.5  Added demo gif on README.md
+- v0.0.5  Added handling if there is not a git repository opened
+
+
+### Changed
+- Improved watcher all over modules
+- Improved sync control for webviews
+
+
+### Fixed
+- v0.0.5  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
+
+
+### Removed
+- Removed old modal for branch management
+
+## [0.0.1] - 2025-03-11
 
 ### Added
 - Initial release
-- Basic Git repository information display
-- Git log visualization
 
 
-## [0.0.2] - 2023-11-29
+## [0.0.2] - 2025-03-11
 
 ### Added
-- Initial Git log visualization implementation
-- Basic commit history display
-- Added syncronization for webviews
-- Added custom context-menu options for branches operations
+- Added basic git log visualization
+- Added basic git branch management
+- Added basic git commit history display
+- Added basic git branch operations (create, delete, checkout)
+- Added basic git repository status display
 
 
-## [0.0.3] - 2023-11-29
+## [0.0.3] - 2025-03-14
 
 ### Added
 - Integrate terminal view for log with actions
 - Improved watcher all over modules
 
 
-## [0.0.4] - 2023-11-29
+## [0.0.4] - 2025-03-14
 
 ### Added
 - Changed handling for create branches 
 - Improved sync control for webviews
+### Removed
+- Removed old modal for branch management
+
+
+## [0.0.5] - 2025-03-15
+
+### Added
+- Added demo gif on README.md
+- Added handling if there is not a git repository opened
+### Fixed
+- Improved toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
 

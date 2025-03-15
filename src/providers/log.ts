@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
+import { Views } from './views';
 
 export class LogViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
@@ -11,24 +12,35 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
+        const views = new Views();
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
         };
 
-        const status = await this.gitService.getGitStatus();
-        const log = await this.gitService.getLog();
-        webviewView.webview.html = this.generateLogHtml(log, status);
+        gitChangeEmitter.event(async () => {
+            await this.updateView();
+        });
 
         webviewView.webview.onDidReceiveMessage(async (message) => {
             if (message.command === 'switchToTerminal') {
                 this.showTerminalLog();
             }
+            if (message.command === 'openFolder') {
+                vscode.commands.executeCommand('vscode.openFolder');
+            }
         });
 
-        gitChangeEmitter.event(async () => {
-            await this.updateView();
-        });
+        if (!views.isWorkspaceAvailable(vscode.workspace)) {
+            webviewView.webview.html = views.generateNoRepoHtml();
+            return;
+        }
+
+      
+
+        const status = await this.gitService.getGitStatus();
+        const log = await this.gitService.getLog();
+        webviewView.webview.html = this.generateLogHtml(log, status);
 
         try {
             await this.updateView();

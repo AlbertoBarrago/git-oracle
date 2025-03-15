@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import {gitChangeEmitter} from '../extension'
+import { Views } from './views';
 
 export class CherryPickViewProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
+        const views = new Views();
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri]
@@ -15,21 +17,29 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             await this.refresh();
         });
 
+        webviewView.webview.onDidReceiveMessage(async message => {
+            switch (message.command) {
+                case 'openFolder':
+                    vscode.commands.executeCommand('workbench.action.files.openFolder');
+                    break;
+                case 'refresh':
+                    const refreshedCommits = await this.gitService.getCommitHistory();
+                    webviewView.webview.html = this.generateCherryPickHtml(refreshedCommits);
+                    return;
+                case 'cherryPick':
+                    await this.performCherryPick(message.commit);
+                    return;
+            }
+        });
+
+        if (!views.isWorkspaceAvailable(vscode.workspace)) {
+            webviewView.webview.html = views.generateNoRepoHtml();
+            return;
+        }
+
         try {
             const commits = await this.gitService.getCommitHistory();
             webviewView.webview.html = this.generateCherryPickHtml(commits);
-
-            webviewView.webview.onDidReceiveMessage(async message => {
-                switch (message.command) {
-                    case 'refresh':
-                        const refreshedCommits = await this.gitService.getCommitHistory();
-                        webviewView.webview.html = this.generateCherryPickHtml(refreshedCommits);
-                        return;
-                    case 'cherryPick':
-                        await this.performCherryPick(message.commit);
-                        return;
-                }
-            });
         } catch (error) {
             webviewView.webview.html = this.generateErrorHtml(error as Error);
         }
