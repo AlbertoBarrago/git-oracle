@@ -1,176 +1,186 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
+import { Views } from './views';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
-  private _view?: vscode.WebviewView;
+    private _view?: vscode.WebviewView;
 
-  constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
-    this.gitService.startAutoFetch();
-    gitChangeEmitter.event(() => {
-      if (this._view) {
-        this.refresh().then(html => {
-          this._view!.webview.html = html;
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
+        this.gitService.startAutoFetch();
+        gitChangeEmitter.event(() => {
+            if (this._view) {
+                this.refresh().then(html => {
+                    this._view!.webview.html = html;
+                });
+            }
         });
-      }
-    });
-  }
-
-  async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
-    this._view = webviewView;
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this.extensionUri],
-    };
-
-    try {
-      const localBranches = await this.gitService.getLocalBranches();
-      const remoteBranches = await this.gitService.getRemoteBranches();
-      webviewView.webview.html = this.generateBranchesHtml(localBranches, remoteBranches);
-      webviewView.webview.onDidReceiveMessage(async message => {
-        switch (message.command) {
-          case 'createBranch':
-            try {
-              await this.gitService.createBranch(message.branch);
-              vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
-              webviewView.webview.html = await this.refresh();
-            } catch (error) {
-              vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
-            }
-            break;
-          case 'refresh':
-            try {
-              webviewView.webview.html = await this.refresh();
-            } catch (error) {
-              vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
-            }
-            break;
-          case 'switch':
-            try {
-              await this.gitService.switchBranch(message.branch);
-              vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
-              gitChangeEmitter.fire();
-            } catch (error) {
-              vscode.window.showErrorMessage(`Failed to checkout branch: ${error}`);
-            }
-            break;
-          case 'delete':
-            try {
-              await this.gitService.deleteBranch(message.branch);
-              vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-              webviewView.webview.html = await this.refresh();
-            } catch (error) {
-              vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
-            }
-            break;
-          case 'delete-remote':
-            try {
-              await this.gitService.deleteRemoteBranch(message.branch);
-              vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-              webviewView.webview.html = await this.refresh();
-            } catch (error) {
-              vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
-            }
-            break;
-        }
-      });
-    } catch (error) {
-      webviewView.webview.html = this.generateErrorHtml(error as Error);
     }
-  }
 
-  async refresh(): Promise<string> {
-    const refreshedLocal = await this.gitService.getLocalBranches();
-    const refreshedRemote = await this.gitService.getRemoteBranches();
-    return this.generateBranchesHtml(refreshedLocal, refreshedRemote);
-  }
+    async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
+        this._view = webviewView;
+        const views = new Views();
 
-  private generateBranchesHtml(
-    localBranches: string[],
-    remoteBranches: Map<string, string[]>
-  ): string {
-    const groupedLocalBranches = this.groupBranchesByPrefix(localBranches);
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this.extensionUri],
+        };
 
-    const localBranchesHtml = Object.entries(groupedLocalBranches)
-      .map(([prefix, branches]) => {
-        const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        return `
+        webviewView.webview.onDidReceiveMessage(async message => {
+            switch (message.command) {
+                case 'openFolder':
+                    vscode.commands.executeCommand('workbench.action.files.openFolder');
+                    break;
+                case 'createBranch':
+                    try {
+                        await this.gitService.createBranch(message.branch);
+                        vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
+                        webviewView.webview.html = await this.refresh();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
+                    }
+                    break;
+                case 'refresh':
+                    try {
+                        webviewView.webview.html = await this.refresh();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
+                    }
+                    break;
+                case 'switch':
+                    try {
+                        await this.gitService.switchBranch(message.branch);
+                        vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
+                        gitChangeEmitter.fire();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to checkout branch: ${error}`);
+                    }
+                    break;
+                case 'delete':
+                    try {
+                        await this.gitService.deleteBranch(message.branch);
+                        vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
+                        webviewView.webview.html = await this.refresh();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
+                    }
+                    break;
+                case 'delete-remote':
+                    try {
+                        await this.gitService.deleteRemoteBranch(message.branch);
+                        vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
+                        webviewView.webview.html = await this.refresh();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
+                    }
+                    break;
+            }
+        });
+
+        if (!views.isWorkspaceAvailable(vscode.workspace)) {
+            webviewView.webview.html = views.generateNoRepoHtml();
+            return;
+        }
+
+        try {
+            const localBranches = await this.gitService.getLocalBranches();
+            const remoteBranches = await this.gitService.getRemoteBranches();
+            webviewView.webview.html = this.generateBranchesHtml(localBranches, remoteBranches);
+
+        } catch (error) {
+            webviewView.webview.html = this.generateErrorHtml(error as Error);
+        }
+    }
+
+    async refresh(): Promise<string> {
+        const refreshedLocal = await this.gitService.getLocalBranches();
+        const refreshedRemote = await this.gitService.getRemoteBranches();
+        return this.generateBranchesHtml(refreshedLocal, refreshedRemote);
+    }
+
+    private generateBranchesHtml(
+        localBranches: string[],
+        remoteBranches: Map<string, string[]>
+    ): string {
+        const groupedLocalBranches = this.groupBranchesByPrefix(localBranches);
+
+        const localBranchesHtml = Object.entries(groupedLocalBranches)
+            .map(([prefix, branches]) => {
+                const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                return `
                 <div class="branch-group">
                     <div class="group-header" onclick="toggleGroup('${groupId}')">
                         <span class="toggle-icon">▶</span>
                         <span class="group-name">
-                            ${
-                              prefix.includes('feature')
-                                ? '✨'
-                                : prefix.includes('bugfix')
-                                ? '🐛'
-                                : prefix.includes('hotfix')
+                            ${prefix.includes('feature')
+                        ? '✨'
+                        : prefix.includes('bugfix')
+                            ? '🐛'
+                            : prefix.includes('hotfix')
                                 ? '🚨'
                                 : prefix.includes('release')
-                                ? '🚀'
-                                : prefix.includes('develop')
-                                ? '🛠️'
-                                : '📁'
-                            } 
+                                    ? '🚀'
+                                    : prefix.includes('develop')
+                                        ? '🛠️'
+                                        : '📁'
+                    } 
                             ${prefix.replace('/', '')}
                         </span>
                         <span class="branch-count">${branches.length}</span>
                     </div>
                     <div id="${groupId}" class="group-content">
                         ${branches
-                          .map(
+                        .map(
                             branch => `
                             <div class="branch-item" oncontextmenu="event.preventDefault(); showBranchMenu(event, '${this.escapeHtml(
-                              branch
+                                branch
                             )}')">
                                 <span class="branch-icon">
-                                    ${
-                                      branch.includes('feature')
-                                        ? '✨'
-                                        : branch.includes('bugfix')
+                                    ${branch.includes('feature')
+                                    ? '✨'
+                                    : branch.includes('bugfix')
                                         ? '🐛'
                                         : branch.includes('hotfix')
-                                        ? '🚨'
-                                        : branch.includes('release')
-                                        ? '🚀'
-                                        : branch.includes('develop')
-                                        ? '🛠️'
-                                        : '📁'
-                                    }
+                                            ? '🚨'
+                                            : branch.includes('release')
+                                                ? '🚀'
+                                                : branch.includes('develop')
+                                                    ? '🛠️'
+                                                    : '📁'
+                                }
                                 </span>
                                 <span>${this.escapeHtml(branch)}</span>
                                 <div class="branch-actions">
                                     <button onclick="switchBranch('${this.escapeHtml(
-                                      branch
-                                    )}')" class="action-button">
+                                    branch
+                                )}')" class="action-button">
                                         🔄 Switch
                                     </button>
-                                    ${
-                                      branch !== 'develop'
-                                        ? `<button onclick="confirmDelete('${this.escapeHtml(
-                                            branch
-                                          )}')" class="action-button danger">
+                                    ${branch !== 'develop'
+                                    ? `<button onclick="confirmDelete('${this.escapeHtml(
+                                        branch
+                                    )}')" class="action-button danger">
                                             🗑️ Delete
                                         </button>`
-                                        : '<button disabled title="Cannot delete develop branch" class="action-button" style="opacity: 0.5">🗑️ Delete</button>'
-                                    }
+                                    : '<button disabled title="Cannot delete develop branch" class="action-button" style="opacity: 0.5">🗑️ Delete</button>'
+                                }
                                 </div>
                             </div>
                         `
-                          )
-                          .join('')}
+                        )
+                        .join('')}
                     </div>
                 </div>
             `;
-      })
-      .join('');
+            })
+            .join('');
 
-    const remoteBranchesHtml = Array.from(remoteBranches.entries())
-      .map(([remote, branches]) => {
-        const remoteId = `remote-${remote.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        const groupedRemoteBranches = this.groupBranchesByPrefix(branches);
+        const remoteBranchesHtml = Array.from(remoteBranches.entries())
+            .map(([remote, branches]) => {
+                const remoteId = `remote-${remote.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                const groupedRemoteBranches = this.groupBranchesByPrefix(branches);
 
-        return `<div class="remote-group">
+                return `<div class="remote-group">
                     <div class="group-header" onclick="toggleGroup('${remoteId}')">
                         <span class="toggle-icon">▶</span>
                         <span class="group-name">${remote}</span>
@@ -178,10 +188,10 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div id="${remoteId}" class="group-content">
                         ${Object.entries(groupedRemoteBranches)
-                          .map(([prefix, prefixBranches]) => {
+                        .map(([prefix, prefixBranches]) => {
                             const subGroupId = `${remoteId}-${prefix.replace(
-                              /[^a-zA-Z0-9]/g,
-                              '-'
+                                /[^a-zA-Z0-9]/g,
+                                '-'
                             )}`;
                             return `<div class="branch-subgroup">
                                     <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
@@ -191,29 +201,29 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                     </div>
                                     <div id="${subGroupId}" class="group-content">
                                         ${prefixBranches
-                                          .map(
-                                            branch => `
+                                    .map(
+                                        branch => `
                                             <div class="branch-item" oncontextmenu="event.preventDefault(); showRemoteBranchMenu(event, '${this.escapeHtml(
-                                              branch
-                                            )}', '${this.escapeHtml(remoteId)}')">
+                                            branch
+                                        )}', '${this.escapeHtml(remoteId)}')">
                                                 <span class="branch-icon">🔹</span>
                                                 <span>${this.escapeHtml(branch)}</span>
                                             </div>
                                         `
-                                          )
-                                          .join('')}
+                                    )
+                                    .join('')}
                                     </div>
                                 </div>
                             `;
-                          })
-                          .join('')}
+                        })
+                        .join('')}
                     </div>
                 </div>
             `;
-      })
-      .join('');
+            })
+            .join('');
 
-    const additionalStyles = `
+        const additionalStyles = `
             .group-content {
                 display: none;
                 margin-left: 20px;
@@ -275,7 +285,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-    const updatedToggleScript = `
+        const updatedToggleScript = `
             function toggleGroup(groupId) {
                 const element = document.getElementById(groupId);
                 const header = element.previousElementSibling;
@@ -374,11 +384,11 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-    const styles = `body {
-                            font-family: var(--vscode-font-family);
-                            color: var(--vscode-foreground);
-                            background-color: var(--vscode-editor-background);
-                            padding: 10px;
+        const styles = `body {
+                           font-family: var(--vscode-font-family);
+                           color: var(--vscode-foreground);
+                           background-color: var(--vscode-editor-background);
+                           padding: 10px;
                         }
                         .branch-section {
                             margin-bottom: 20px;
@@ -544,7 +554,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             transition: background-color 0.2s ease;
                         }`;
 
-    const body = ` <h2>🚇 Branches</h2>
+        const body = ` <h2>🚇 Branches</h2>
                 <p>Here you can manage your Git branches: create new ones, switch between branches, and delete existing branches.</p>
 
 
@@ -568,7 +578,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 </div>
                 <div id="overlay" class="overlay"></div>`;
 
-    return `
+        return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -753,27 +763,27 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
-  }
+    }
 
-  private groupBranchesByPrefix(branches: string[]): Record<string, string[]> {
-    const groups: Record<string, string[]> = {};
+    private groupBranchesByPrefix(branches: string[]): Record<string, string[]> {
+        const groups: Record<string, string[]> = {};
 
-    branches.forEach(branch => {
-      const match = branch.match(/^([^/]+\/)?(.+)$/);
-      if (match) {
-        const prefix = match[1] || match[0] || '/'; //before we search for shortcut then longone
-        if (!groups[prefix]) {
-          groups[prefix] = [];
-        }
-        groups[prefix].push(branch);
-      }
-    });
+        branches.forEach(branch => {
+            const match = branch.match(/^([^/]+\/)?(.+)$/);
+            if (match) {
+                const prefix = match[1] || match[0] || '/'; //before we search for shortcut then longone
+                if (!groups[prefix]) {
+                    groups[prefix] = [];
+                }
+                groups[prefix].push(branch);
+            }
+        });
 
-    return groups;
-  }
+        return groups;
+    }
 
-  private generateErrorHtml(error: Error): string {
-    return `
+    private generateErrorHtml(error: Error): string {
+        return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -807,14 +817,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
-  }
+    }
 
-  private escapeHtml(unsafe: string): string {
-    return unsafe
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+    private escapeHtml(unsafe: string): string {
+        return unsafe
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 }
