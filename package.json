@@ -3,7 +3,7 @@
   "displayName": "Git Oracle",
   "author": "Alberto Barrago (alBz) <albertobarrago@gmail.com>",
   "description": "🔮 Enhanced Git integration for VS Code with powerful history visualization, blame tracking, interactive cherry-picking, and branch management. Simplify your Git workflow with magical features!",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "publisher": "AlbertoBarrago",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -67,7 +67,8 @@
         "command": "git-oracle.toggle",
         "key": "cmd+l",
         "mac": "cmd+l",
-        "when": "activeViewlet == 'workbench.view.extension.git-oracle'"      }
+        "when": "view == gitOracleLog || view == gitOracleCherryPick || view == gitOracleBranches"
+      }
     ],
     "menus": {
       "view/title": [
