@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added new feature: Git blame
+- Added new feature: Git blame on editor selection.
+- Unified view for all git operations.
 
 
 ### Added
@@ -23,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v0.0.4  Removed old modal for branch management
 - v0.0.5  Added demo gif on README.md
 - v0.0.5  Added handling if there is not a git repository opened
+
+
+### Fixed 
+- v0.0.6  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
 
 
 ### Changed
@@ -74,10 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added demo gif on README.md
 - Added handling if there is not a git repository opened
-### Fixed
-- Improved toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
 
 ## [0.0.6] - 2025-03-16
 ### Fixed 
-- Toggle keyCommand
+- Toggle keyCommand. Can be used CMD + L or CTRL + L or custom key in extension settings
 

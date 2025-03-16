@@ -66,8 +66,7 @@
       {
         "command": "git-oracle.toggle",
         "key": "cmd+l",
-        "mac": "cmd+l",
-        "when": "view == gitOracleLog || view == gitOracleCherryPick || view == gitOracleBranches"
+        "mac": "cmd+l"
       }
     ],
     "menus": {
