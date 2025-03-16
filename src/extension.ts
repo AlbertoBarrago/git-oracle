@@ -23,12 +23,11 @@ export function activate(context: vscode.ExtensionContext) {
     views.addProviders(providers);
 
     const toggleDisposable = vscode.commands.registerCommand('git-oracle.toggle', async () => {
-        await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
+        const activeViewlet = await vscode.commands.executeCommand('workbench.view.extension.git-oracle');
         
-        const config = vscode.workspace.getConfiguration('workbench');
-        const sidebarVisible = config.get('sideBar.visible', false);
-        
-        if (sidebarVisible) {
+        if (activeViewlet) {
+            await vscode.commands.executeCommand('workbench.action.closeSidebar');
+        } else {
             await vscode.commands.executeCommand('workbench.view.extension.git-oracle');
         }
     });

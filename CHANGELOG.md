@@ -5,7 +5,10 @@ All notable changes to the Git Oracle extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.1] - 2025-03-11
+## [Unreleased]
+### Added
+- Added new feature: Git blame
+
 
 ### Added
 - v0.0.1  Initial release
@@ -73,4 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added handling if there is not a git repository opened
 ### Fixed
 - Improved toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
+
+## [0.0.6] - 2025-03-16
+### Fixed 
+- Toggle keyCommand
 
