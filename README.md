@@ -1,5 +1,18 @@
 # 🔮 Git Oracle: Your Magical Git Companion
 
+[![VS Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/AlbertoBarrago.git-oracle)](https://marketplace.visualstudio.com/items?itemName=AlbertoBarrago.git-oracle)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/AlbertoBarrago.git-oracle)](https://marketplace.visualstudio.com/items?itemName=AlbertoBarrago.git-oracle)
+
+
+[![Open VSX Version](https://img.shields.io/open-vsx/v/AlbertoBarrago/git-oracle)](https://open-vsx.org/extension/AlbertoBarrago/git-oracle)
+[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/AlbertoBarrago/git-oracle)](https://open-vsx.org/extension/AlbertoBarrago/git-oracle)
+
+
+[![Package on PR Merge](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/package-on-pr.yml/badge.svg)](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/package-on-pr.yml)
+[![Version Bump and Release](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/version-bump.yml/badge.svg)](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/version-bump.yml)
+
+
+
 Git Oracle enhances your VS Code Git experience with powerful visualization tools and streamlined workflows.
 
 ## Demo 
@@ -8,19 +21,19 @@ Git Oracle enhances your VS Code Git experience with powerful visualization tool
 ## ✨ Features
 
 ### 📊 Commit Graph
-Visualize your commit history as a graph, with customizable options.
+- Visualize your commit history as a graph.
+- Real time update as you make changes.
 
 ### 📈 Branch Graph
-Visualize your branch history as a graph, with customizable options.
-
-### 🎨 Commit Visualization
-View individual commits with detailed information and diffs.
+- Visualize your branch history as a graph.
+- Create new branches with a single click.
+- Switch between branches with a single click.
+- Delete branches with a single click.
 
 ### 🍒 Cherry-picking 
-Easily select and apply specific commits from other branches.
+- Easily select and apply specific commits from other branches.
 
 ## 🧰 Requirements
-
 - Git installed and in your PATH
 - VS Code 1.60.0 or higher
 
@@ -29,6 +42,7 @@ Easily select and apply specific commits from other branches.
 * `gitOracle.gitPath`: Path to Git executable (default: "git")
 * `gitOracle.maxCommitHistory`: Maximum commits to display (default: 100)
 * `gitOracle.showRelativeDates`: Show relative dates (default: true)
+* `gitOracle.autoFetch`: Automatically fetch changes (default: true)
 
 ## 🪄 Usage
 
@@ -48,7 +62,7 @@ Access Git Oracle features through:
 MIT License - See LICENSE file for details
 
 ## Publish Alert 
-This extension is not published on the VS Code Marketplace.
+This extension is published on the VS Code Marketplace.
 [🚀 Download](https://marketplace.visualstudio.com/items?itemName=AlbertoBarrago.git-oracle)
 
 ## Buy me a beer 
