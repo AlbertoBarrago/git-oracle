@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 - v0.0.6  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
+- v0.0.7  Fixed fileicons (don't propagate for all files)
 
 
 ### Changed
@@ -83,4 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.6] - 2025-03-16
 ### Fixed 
 - Toggle keyCommand. Can be used CMD + L or CTRL + L or custom key in extension settings
+
+## [0.0.7] - 2025-03-16
+### Fixed 
+- Fixed fileicons (don't propagate for all files)
 

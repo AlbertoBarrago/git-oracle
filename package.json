@@ -116,13 +116,6 @@
         }
       ]
     },
-    "iconThemes": [
-      {
-        "id": "git-oracle-icons",
-        "label": "Git Oracle Icons",
-        "path": "./theme/fileicons.json"
-      }
-    ],
     "configuration": {
       "title": "Git Oracle",
       "properties": {
