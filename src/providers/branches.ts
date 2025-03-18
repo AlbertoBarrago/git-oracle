@@ -114,13 +114,13 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                         <span class="group-name">
                             ${prefix.includes('feature')
                         ? '✨'
-                        : prefix.includes('bugfix')
+                        : prefix.includes('bugfix') || prefix.includes('Bugfix')
                             ? '🐛'
-                            : prefix.includes('hotfix')
+                            : prefix.includes('hotfix') || prefix.includes('Hotfix')
                                 ? '🚨'
-                                : prefix.includes('release')
+                                : prefix.includes('release') || prefix.includes('Release')
                                     ? '🚀'
-                                    : prefix.includes('develop')
+                                    : prefix.includes('develop') || prefix.includes('Develop')
                                         ? '🛠️'
                                         : '📁'
                     } 
@@ -136,15 +136,15 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                 branch
                             )}')">
                                 <span class="branch-icon">
-                                    ${branch.includes('feature')
+                                    ${branch.includes('feature') || branch.includes('Feature')
                                     ? '✨'
-                                    : branch.includes('bugfix')
+                                    : branch.includes('bugfix') || branch.includes('Bugfix')
                                         ? '🐛'
-                                        : branch.includes('hotfix')
+                                        : branch.includes('hotfix') || branch.includes('Hotfix') 
                                             ? '🚨'
-                                            : branch.includes('release')
+                                            : branch.includes('release') || branch.includes('Release') 
                                                 ? '🚀'
-                                                : branch.includes('develop')
+                                                : branch.includes('develop') || branch.includes('Develop')
                                                     ? '🛠️'
                                                     : '📁'
                                 }
@@ -156,7 +156,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                 )}')" class="action-button">
                                         🔄 Switch
                                     </button>
-                                    ${branch !== 'develop'
+                                    ${branch !== 'develop' && branch !== 'main'
                                     ? `<button onclick="confirmDelete('${this.escapeHtml(
                                         branch
                                     )}')" class="action-button danger">
@@ -183,8 +183,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 return `<div class="remote-group">
                     <div class="group-header" onclick="toggleGroup('${remoteId}')">
                         <span class="toggle-icon">▶</span>
-                        <span class="group-name">${remote}</span>
-                        <span class="branch-count">${branches.length}</span>
+                        <span class="group-name">${remote}  </span>
+                        <span class="branch-count">(${branches.length})</span>
                     </div>
                     <div id="${remoteId}" class="group-content">
                         ${Object.entries(groupedRemoteBranches)
@@ -196,8 +196,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             return `<div class="branch-subgroup">
                                     <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
                                         <span class="toggle-icon">▶</span>
-                                        <span class="group-name">${prefix.replace('/', ' ')}</span>
-                                        <span class="branch-count"> ${prefixBranches.length}</span>
+                                        <span class="group-name">${prefix.replace('/', ' ')}  </span>
+                                        <span class="branch-count"> (${prefixBranches.length})</span>
                                     </div>
                                     <div id="${subGroupId}" class="group-content">
                                         ${prefixBranches

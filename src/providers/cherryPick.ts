@@ -133,8 +133,7 @@ export class CherryPickViewProvider implements vscode.WebviewViewProvider {
             </head>
             <body>
                 <h2>🍒 Cherry Pick</h2>
-                <p>Here you can select a commit from any branch and apply those changes to your current branch. 
-                This is useful when you want to bring specific changes from one branch to another without merging the entire branch.</p>
+                <p>Here you can select a commit from any branch and apply those changes to your current branch.</p>
                 <div style="margin-top: 10px; margin-bottom: 10px; overflow: auto; max-height: 500px;">
                     <table>
                         <thead>

@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v0.0.4  Removed old modal for branch management
 - v0.0.5  Added demo gif on README.md
 - v0.0.5  Added handling if there is not a git repository opened
+- v0.0.8  Added graphic review for log view
+- v0.0.8  Added graphic improve for branch's view
 
 
 ### Fixed 
@@ -85,7 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed 
 - Toggle keyCommand. Can be used CMD + L or CTRL + L or custom key in extension settings
 
-## [0.0.7] - 2025-03-16
+## [0.0.7] - 2025-03-17
 ### Fixed 
 - Fixed fileicons (don't propagate for all files)
+
+## [0.0.8] - 2025-03-18
+### Added 
+- Graphic review for log view
+- Graphic improve for branch's view
 

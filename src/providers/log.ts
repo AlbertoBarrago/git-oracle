@@ -36,17 +36,9 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             return;
         }
 
-      
-
         const status = await this.gitService.getGitStatus();
         const log = await this.gitService.getLog();
         webviewView.webview.html = this.generateLogHtml(log, status);
-
-        try {
-            await this.updateView();
-        } catch (error) {
-            webviewView.webview.html = this.generateErrorHtml(error as Error);
-        }
     }
 
     private async showTerminalLog() {
@@ -87,84 +79,112 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     private generateLogHtml(log: string, status: { branch: string; user: string; timestamp: string }): string {
         return `
             <!DOCTYPE html>
-            <html lang="en">
+            <html>
             <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>🌳 Git Log</title>
                 <style>
-                    .status-panel {
-                        background: var(--vscode-editor-inactiveSelectionBackground);
-                        border-radius: 6px;
-                        padding: 12px;
-                        margin: 16px 0;
-                        display: grid;
-                        grid-template-columns: repeat(3, 1fr);
-                        gap: 16px;
+                    .status-bar {
+                        background: var(--vscode-sideBar-background);
+                        padding: 7px;
+                        margin-bottom: 5px;
+                        border-radius: 4px;
+                        font-size: 16px;
                     }
                     .status-item {
+                        margin: 4px 0;
                         display: flex;
-                        flex-direction: column;
                         gap: 4px;
                     }
-                    .status-label {
-                        font-size: 12px;
-                        color: var(--vscode-descriptionForeground);
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
+                    .log-container {
+                        background: var(--vscode-sideBar-background);
+                        border-radius: 4px;
+                        margin-top: 16px;
                     }
-                    .status-value {
-                        font-size: 14px;
-                        font-weight: 500;
-                        color: var(--vscode-foreground);
+                    .log-header {
+                        display: flex;
+                        align-items: center;
+                        padding: 8px;
+                        cursor: pointer;
+                        user-select: none;
                     }
-                    .branch-indicator {
-                        color: #3794ff;
-                        font-family: monospace;
+                    .log-header:hover {
+                        background: var(--vscode-list-hoverBackground);
                     }
-                     .git-log pre {
-                        font-family: 'Consolas', 'Courier New', monospace;
-                        white-space: pre;
-                        word-wrap: normal;
-                        padding: 10px;
+                    .toggle-icon {
+                        margin-right: 8px;
+                        transition: transform 0.2s;
+                    }
+                    .log-content {
+                        display: none;
+                        padding: 8px;
+                    }
+                    .log-content.show {
+                        display: block;
+                    }
+                    .git-log {
+                        font-family: var(--vscode-editor-font-family);
+                        font-size: var(--vscode-editor-font-size);
+                    }
+                    pre {
                         margin: 0;
-                        background: var(--vscode-editor-background);
-                        overflow-x: auto;
-                        line-height: 1.4;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
                     }
                 </style>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const terminalButton = document.getElementById('switchToTerminal');
-                        if (terminalButton) {
-                            terminalButton.addEventListener('click', () => {
-                                vscode.postMessage({ command: 'switchToTerminal' });
-                            });
-                        }
-                    });
-                </script>
             </head>
             <body>
-                <h2>🌳 Git Log</h2>
-                <div class="status-panel">
+                <h2>📜 Git Log</h2>
+                <div class="status-bar">
                     <div class="status-item">
-                        <span class="status-label">Current Branch</span>
-                        <span class="status-value branch-indicator">${this.escapeHtml(status.branch)}</span>
+                        <span>🌿 Branch:</span> <b>${this.escapeHtml(status.branch)}</b>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">User</span>
-                        <span class="status-value">${this.escapeHtml(status.user)}</span>
+                        <span>👤 User:</span> ${this.escapeHtml(status.user)}
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Last Updated</span>
-                        <span class="status-value">${this.escapeHtml(status.timestamp)}</span>
+                        <span>🕒 Last Update:</span> ${this.escapeHtml(status.timestamp)}
                     </div>
                 </div>
-                ${this.formatLogWithStyle(log)}
+                <div class="log-container">
+                    <div class="log-header" onclick="toggleLog()">
+                        <span class="toggle-icon">▶</span>
+                        <span>Commit History</span>
+                    </div>
+                    <div id="logContent" class="log-content">
+                        ${this.formatLogWithStyle(log)}
+                    </div>
+                </div>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    
+                    function toggleLog() {
+                        const content = document.getElementById('logContent');
+                        const icon = document.querySelector('.toggle-icon');
+                        content.classList.toggle('show');
+                        icon.style.transform = content.classList.contains('show') ? 'rotate(90deg)' : 'rotate(0deg)';
+                    }
+                </script>
             </body>
             </html>
         `;
+    }
+
+    private groupLogByBranch(logEntries: string[]): Record<string, string[]> {
+        const groups: Record<string, string[]> = {};
+        let currentBranch = 'main';
+
+        logEntries.forEach(entry => {
+            const branchMatch = entry.match(/\((.*?)\)/);
+            if (branchMatch) {
+                currentBranch = branchMatch[1].trim();
+            }
+            
+            if (!groups[currentBranch]) {
+                groups[currentBranch] = [];
+            }
+            groups[currentBranch].push(entry);
+        });
+
+        return groups;
     }
 
     private generateErrorHtml(error: Error): string {
