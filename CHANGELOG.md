@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added new feature: Git blame on editor selection.
-- Unified view for all git operations.
 
 
 ### Added
@@ -28,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v0.0.8  Added graphic improve for branch's view
 - v1.0.0  New status bar
 - v1.0.0  Added graphic review for log view
+- v1.0.1  Reviewed Change Log
 
 
 ### Fixed 
@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Removed old modal for branch management
+- Removed cherry-pick webView
 
 ## [0.0.1] - 2025-03-11
 
@@ -98,11 +99,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphic review for log view
 - Graphic improve for branch's view
 
-## [1.0.0] - 2025-03-18
+## [1.0.0] - 2025-03-19
 ### Added 
 - New status bar 
 - Added graphic review for log view
 ### Changed 
 - Git Blame view removed
+
+## [1.0.1] - 2025-03-19
+### Fixed
+- Reviewed Change Log
 
 
