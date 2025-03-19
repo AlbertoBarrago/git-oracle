@@ -1,14 +1,13 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
-import { Views } from './views';
+import { Views } from './helper';
 
 export class LogViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private terminal: vscode.Terminal | undefined;
 
-
-    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {}
+    constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
@@ -38,14 +37,14 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
         const status = await this.gitService.getGitStatus();
         const log = await this.gitService.getLog();
-        webviewView.webview.html = this.generateLogHtml(log, status);
+        webviewView.webview.html = this.generateLogHtml(status);
     }
 
     private async showTerminalLog() {
         if (!this.terminal) {
             this.terminal = vscode.window.createTerminal('Git Oracle Log');
         }
-        
+
         this.terminal.show();
         this.terminal.sendText('clear');
         this.terminal.sendText(`cd ${this.gitService.getWorkspaceRoot()}`);
@@ -56,7 +55,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         if (this._view) {
             const log = await this.gitService.getLog();
             const status = await this.gitService.getGitStatus();
-            this._view.webview.html = this.generateLogHtml(log, status);
+            this._view.webview.html = this.generateLogHtml(status);
         }
     }
 
@@ -76,7 +75,16 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         `;
     }
 
-    private generateLogHtml(log: string, status: { branch: string; user: string; timestamp: string }): string {
+    private generateLogHtml(status: {
+        branch: string;
+        user: string;
+        timestamp: string;
+        added?: number;
+        modified?: number;
+        deleted?: number;
+        remote?: string;
+        commitHash?: string;
+    }): string {
         return `
             <!DOCTYPE html>
             <html>
@@ -84,85 +92,98 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 <style>
                     .status-bar {
                         background: var(--vscode-sideBar-background);
-                        padding: 7px;
-                        margin-bottom: 5px;
-                        border-radius: 4px;
-                        font-size: 16px;
+                        padding: 10px;
+                        margin-bottom: 10px;
+                        border-radius: 6px;
+                        font-size: 13px;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        max-width: 100%;
+                        overflow: hidden;
                     }
                     .status-item {
-                        margin: 4px 0;
-                        display: flex;
-                        gap: 4px;
-                    }
-                    .log-container {
-                        background: var(--vscode-sideBar-background);
-                        border-radius: 4px;
-                        margin-top: 16px;
-                    }
-                    .log-header {
+                        margin: 6px 0;
                         display: flex;
                         align-items: center;
-                        padding: 8px;
-                        cursor: pointer;
-                        user-select: none;
+                        gap: 8px;
                     }
-                    .log-header:hover {
-                        background: var(--vscode-list-hoverBackground);
+                    .status-icon {
+                        flex-shrink: 0;
+                        width: 16px;
+                        height: 16px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
                     }
-                    .toggle-icon {
-                        margin-right: 8px;
-                        transition: transform 0.2s;
+                    .status-label {
+                        color: var(--vscode-descriptionForeground);
+                        width: 90px;
+                        flex-shrink: 0;
                     }
-                    .log-content {
-                        display: none;
-                        padding: 8px;
+                    .status-value {
+                        font-weight: 500;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
-                    .log-content.show {
-                        display: block;
+                    .status-divider {
+                        height: 1px;
+                        background-color: var(--vscode-panel-border);
+                        margin: 8px 0;
+                        opacity: 0.5;
                     }
-                    .git-log {
-                        font-family: var(--vscode-editor-font-family);
-                        font-size: var(--vscode-editor-font-size);
-                    }
-                    pre {
-                        margin: 0;
-                        white-space: pre-wrap;
-                        word-wrap: break-word;
+                    .status-badge {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: var(--vscode-badge-background);
+                        color: var(--vscode-badge-foreground);
+                        border-radius: 10px;
+                        padding: 2px 6px;
+                        font-size: 11px;
+                        margin-right: 6px;
                     }
                 </style>
             </head>
             <body>
-                <h2>📜 Git Log</h2>
                 <div class="status-bar">
                     <div class="status-item">
-                        <span>🌿 Branch:</span> <b>${this.escapeHtml(status.branch)}</b>
+                        <span class="status-icon">🌿</span>
+                        <span class="status-label">Branch:</span>
+                        <span class="status-value">${this.escapeHtml(status.branch)}</span>
                     </div>
                     <div class="status-item">
-                        <span>👤 User:</span> ${this.escapeHtml(status.user)}
+                        <span class="status-icon">👤</span>
+                        <span class="status-label">User:</span>
+                        <span class="status-value">${this.escapeHtml(status.user)}</span>
                     </div>
                     <div class="status-item">
-                        <span>🕒 Last Update:</span> ${this.escapeHtml(status.timestamp)}
+                        <span class="status-icon">🕒</span>
+                        <span class="status-label">Last Update:</span>
+                        <span class="status-value">${this.escapeHtml(status.timestamp)}</span>
                     </div>
-                </div>
-                <div class="log-container">
-                    <div class="log-header" onclick="toggleLog()">
-                        <span class="toggle-icon">▶</span>
-                        <span>Commit History</span>
-                    </div>
-                    <div id="logContent" class="log-content">
-                        ${this.formatLogWithStyle(log)}
-                    </div>
-                </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
                     
-                    function toggleLog() {
-                        const content = document.getElementById('logContent');
-                        const icon = document.querySelector('.toggle-icon');
-                        content.classList.toggle('show');
-                        icon.style.transform = content.classList.contains('show') ? 'rotate(90deg)' : 'rotate(0deg)';
-                    }
-                </script>
+                    <div class="status-divider"></div>
+                    
+                    <div class="status-item">
+                        <span class="status-icon">📝</span>
+                        <span class="status-label">Changes:</span>
+                        <span class="status-value">
+                            <span class="status-badge">+${status.added || 0}</span>
+                            <span class="status-badge">~${status.modified || 0}</span>
+                            <span class="status-badge">-${status.deleted || 0}</span>
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">🔄</span>
+                        <span class="status-label">Remote:</span>
+                        <span class="status-value">${this.escapeHtml(status.remote || 'Not tracking')}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">🔍</span>
+                        <span class="status-label">Commit:</span>
+                        <span class="status-value">${this.escapeHtml(status.commitHash || 'No commits')}</span>
+                    </div>
+                </div>
             </body>
             </html>
         `;
@@ -177,7 +198,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             if (branchMatch) {
                 currentBranch = branchMatch[1].trim();
             }
-            
+
             if (!groups[currentBranch]) {
                 groups[currentBranch] = [];
             }

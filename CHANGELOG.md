@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v0.0.5  Added handling if there is not a git repository opened
 - v0.0.8  Added graphic review for log view
 - v0.0.8  Added graphic improve for branch's view
+- v1.0.0  New status bar
+- v1.0.0  Added graphic review for log view
 
 
 ### Fixed 
@@ -95,4 +97,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added 
 - Graphic review for log view
 - Graphic improve for branch's view
+
+## [1.0.0] - 2025-03-18
+### Added 
+- New status bar 
+- Added graphic review for log view
+### Changed 
+- Git Blame view removed
+
 

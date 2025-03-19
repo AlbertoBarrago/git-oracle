@@ -3,7 +3,7 @@
   "displayName": "Git Oracle",
   "author": "Alberto Barrago (alBz) <albertobarrago@gmail.com>",
   "description": "🔮 Enhanced Git integration for VS Code with powerful history visualization, blame tracking, interactive cherry-picking, and branch management. Simplify your Git workflow with magical features!",
-  "version": "0.0.7",
+  "version": "1.0.0",
   "publisher": "AlbertoBarrago",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -73,12 +73,12 @@
       "view/title": [
         {
           "command": "git-oracle.showLog",
-          "when": "view == gitOracleLog",
+          "when": "view == gitOracleStatus",
           "group": "navigation"
         },
         {
           "command": "git-oracle.refreshView",
-          "when": "view == gitOracleBranches || view == gitOracleLog || view == gitOracleCherryPick",
+          "when": "view == gitOracleBranches || view == gitOracleStatus",
           "group": "navigation"
         },
         {
@@ -101,18 +101,13 @@
       "git-oracle": [
         {
           "type": "webview",
-          "id": "gitOracleLog",
-          "name": "Log"
-        },
-        {
-          "type": "webview",
-          "id": "gitOracleCherryPick",
-          "name": "Cherry Pick"
-        },
-        {
-          "type": "webview",
           "id": "gitOracleBranches",
-          "name": "Branches"
+          "name": "🚊 Branches"
+        },
+        {
+          "type": "webview",
+          "id": "gitOracleStatus",
+          "name": "📜 Status"
         }
       ]
     },
