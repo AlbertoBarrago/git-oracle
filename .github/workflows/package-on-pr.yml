@@ -1,4 +1,8 @@
-name: Package on PR Merge
+name: Package and release on PR Merge
+
+permissions:
+  contents: write
+  packages: write
 
 on:
   pull_request:
