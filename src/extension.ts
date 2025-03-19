@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from './services/gitService';
-import { BranchViewProvider, CherryPickViewProvider, LogViewProvider } from './providers/_index';
-import { Views } from './providers/views';
+import { BranchViewProvider, LogViewProvider } from './providers/_index';
+import { Views } from './providers/helper';
 
 
 /**
@@ -17,8 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const logViewProvider = new LogViewProvider(context.extensionUri, gitService);
     const branchViewProvider = new BranchViewProvider(context.extensionUri, gitService);
-    const cherryPickViewProvider = new CherryPickViewProvider(context.extensionUri, gitService);
-    const providers = [logViewProvider, branchViewProvider, cherryPickViewProvider];
+    const providers = [logViewProvider, branchViewProvider];
 
     views.addProviders(providers);
 
@@ -69,9 +68,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register all providers and commands
     context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider('gitOracleLog', logViewProvider),
+        vscode.window.registerWebviewViewProvider('gitOracleStatus', logViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),
-        vscode.window.registerWebviewViewProvider('gitOracleCherryPick', cherryPickViewProvider),
         toggleDisposable,
         showLogCommand,
         refreshCommand,

@@ -1,10 +1,8 @@
 import {BranchViewProvider} from './branches';
-import {CherryPickViewProvider} from './cherryPick';
-import {LogViewProvider} from './log';
+import {LogViewProvider} from './status';
 
 
 export {
     BranchViewProvider,
-    CherryPickViewProvider,
     LogViewProvider
 } 

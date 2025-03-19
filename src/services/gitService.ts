@@ -12,20 +12,25 @@ export class GitService {
     private fetchInterval: NodeJS.Timer | undefined;
     /**
      * Executes a git command and returns its output
-     * @param command - The git command to execute
+     * @param command - The git command to execute (string or array of arguments)
+     * @param throwOnError - Whether to throw an error if the command fails (default: true)
      * @returns Promise containing the command output
      * @private
      */
-    private async executeGitCommand(command: string): Promise<string> {
+    private async executeGitCommand(command: string | string[], throwOnError = true): Promise<string> {
         try {
+            const commandStr = Array.isArray(command) ? command.join(' ') : command;
             const { stdout } = await execAsync(
-                `${this.config.gitpath} ${command}`,
+                `${this.config.gitpath} ${commandStr}`,
                 { cwd: this.getWorkspaceRoot() }
             );
             return stdout;
         } catch (error) {
-            console.error(`Error executing git command: ${command}`, error);
-            throw error;
+            console.error(`Error executing git command: ${Array.isArray(command) ? command.join(' ') : command}`, error);
+            if (throwOnError) {
+                throw error;
+            }
+            return '';
         }
     }
 
@@ -310,30 +315,77 @@ export class GitService {
      * Gets the current git status including branch, user and timestamp
      * @returns Object containing status information
      */
-    async getGitStatus(): Promise<{ branch: string; user: string; timestamp: string }> {
+    // Add to your GitService class
+    async getGitStatus(): Promise<{ 
+        branch: string; 
+        user: string; 
+        timestamp: string;
+        added: number;
+        modified: number;
+        deleted: number;
+        remote: string;
+        commitHash: string;
+    }> {
         try {
-            const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.getWorkspaceRoot() });
-            let user = '';
-            try {
-                const { stdout: gitUser } = await execAsync('git config user.name', { cwd: this.getWorkspaceRoot() });
-                user = gitUser.trim();
-            } catch {
-                user = 'Unknown User';
-                vscode.window.showWarningMessage('No user setted in repository');
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                return { 
+                    branch: 'No repository', 
+                    user: 'Unknown', 
+                    timestamp: new Date().toLocaleString(),
+                    added: 0,
+                    modified: 0,
+                    deleted: 0,
+                    remote: 'None',
+                    commitHash: 'None'
+                };
             }
-            const timestamp = new Date().toLocaleString('en-US', { 
-                dateStyle: 'medium', 
-                timeStyle: 'medium' 
+    
+            // Get current branch
+            const branchOutput = await this.executeGitCommand(['rev-parse', '--abbrev-ref', 'HEAD']);
+            const branch = branchOutput.trim();
+    
+            // Get user info
+            const userOutput = await this.executeGitCommand(['config', 'user.name']);
+            const user = userOutput.trim() || 'Unknown';
+    
+            // Get last commit timestamp
+            const timestampOutput = await this.executeGitCommand(['log', '-1', '--format=%cd', '--date=local']);
+            const timestamp = timestampOutput.trim() || new Date().toLocaleString();
+    
+            // Get status counts
+            const statusOutput = await this.executeGitCommand(['status', '--porcelain']);
+            const statusLines = statusOutput.split('\n').filter(line => line.trim().length > 0);
+            
+            let added = 0, modified = 0, deleted = 0;
+            statusLines.forEach(line => {
+                const status = line.substring(0, 2);
+                if (status.includes('A')) added++;
+                if (status.includes('M')) modified++;
+                if (status.includes('D')) deleted++;
             });
-
-            return {
-                branch: branch.trim(),
-                user: user.trim(),
-                timestamp
-            };
+    
+            // Get remote tracking info
+            const remoteOutput = await this.executeGitCommand(['rev-parse', '--abbrev-ref', '@{upstream}'], false);
+            const remote = remoteOutput.trim() || 'Not tracking';
+    
+            // Get current commit hash
+            const hashOutput = await this.executeGitCommand(['rev-parse', '--short', 'HEAD'], false);
+            const commitHash = hashOutput.trim() || 'No commits';
+    
+            return { branch, user, timestamp, added, modified, deleted, remote, commitHash };
         } catch (error) {
-            console.error('Error getting git status:', error);
-            throw error;
+            console.error('Error getting Git status:', error);
+            return { 
+                branch: 'Error', 
+                user: 'Unknown', 
+                timestamp: new Date().toLocaleString(),
+                added: 0,
+                modified: 0,
+                deleted: 0,
+                remote: 'Error',
+                commitHash: 'Error'
+            };
         }
     }
 

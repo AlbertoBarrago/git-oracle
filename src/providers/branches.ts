@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
-import { Views } from './views';
+import { Views } from './helper';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
@@ -104,76 +104,68 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     ): string {
         const groupedLocalBranches = this.groupBranchesByPrefix(localBranches);
 
-        const localBranchesHtml = Object.entries(groupedLocalBranches)
-            .map(([prefix, branches]) => {
-                const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
-                return `
-                <div class="branch-group">
-                    <div class="group-header" onclick="toggleGroup('${groupId}')">
-                        <span class="toggle-icon">▶</span>
-                        <span class="group-name">
-                            ${prefix.includes('feature')
-                        ? '✨'
-                        : prefix.includes('bugfix') || prefix.includes('Bugfix')
-                            ? '🐛'
-                            : prefix.includes('hotfix') || prefix.includes('Hotfix')
-                                ? '🚨'
-                                : prefix.includes('release') || prefix.includes('Release')
-                                    ? '🚀'
-                                    : prefix.includes('develop') || prefix.includes('Develop')
-                                        ? '🛠️'
-                                        : '📁'
-                    } 
-                            ${prefix.replace('/', '')}
-                        </span>
-                        <span class="branch-count">${branches.length}</span>
-                    </div>
-                    <div id="${groupId}" class="group-content">
-                        ${branches
-                        .map(
-                            branch => `
-                            <div class="branch-item" oncontextmenu="event.preventDefault(); showBranchMenu(event, '${this.escapeHtml(
-                                branch
-                            )}')">
-                                <span class="branch-icon">
-                                    ${branch.includes('feature') || branch.includes('Feature')
+        const localBranchesHtml = `
+            <div class="branch-group">
+                <div class="group-header" onclick="toggleGroup('local-branches')">
+                    <span class="toggle-icon rotated">→</span>
+                    <span class="group-name">📁 Local</span>
+                    <span class="branch-count">(${Object.values(groupedLocalBranches).reduce((acc, curr) => acc + curr.length, 0)})</span>
+                </div>
+                <div id="local-branches" class="group-content" style="display: block;">
+                    ${Object.entries(groupedLocalBranches)
+                .map(([prefix, branches]) => {
+                    const groupId = `local-${prefix.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                    return `
+                            <div class="branch-subgroup">
+                                <div class="subgroup-header" onclick="toggleGroup('${groupId}')">
+                                    <span class="toggle-icon">→</span>
+                                    <span class="group-name">
+                                        ${prefix.includes('feature')
+                            ? '✨'
+                            : prefix.includes('bugfix') || prefix.includes('Bugfix')
+                                ? '🐛'
+                                : prefix.includes('hotfix') || prefix.includes('Hotfix')
+                                    ? '🚨'
+                                    : prefix.includes('release') || prefix.includes('Release')
+                                        ? '🚀'
+                                        : prefix.includes('main') || prefix.includes('Main')
+                                            ? '⭐️'
+                                            : prefix.includes('develop') || prefix.includes('Develop')
+                                                ? '🛠️'
+                                                : '📁'
+                        } 
+                                        ${prefix.replace('/', '')}
+                                    </span>
+                                    <span class="branch-count">(${branches.length})</span>
+                                </div>
+                                <div id="${groupId}" class="group-content">
+                                    ${branches
+                            .map(branch => `
+                                            <div class="branch-item" oncontextmenu="event.preventDefault(); showBranchMenu(event, '${this.escapeHtml(branch)}')">
+                                                <span class="branch-icon">
+                                                    ${branch.includes('feature') || branch.includes('Feature')
                                     ? '✨'
                                     : branch.includes('bugfix') || branch.includes('Bugfix')
                                         ? '🐛'
-                                        : branch.includes('hotfix') || branch.includes('Hotfix') 
+                                        : branch.includes('hotfix') || branch.includes('Hotfix')
                                             ? '🚨'
-                                            : branch.includes('release') || branch.includes('Release') 
+                                            : branch.includes('release') || branch.includes('Release')
                                                 ? '🚀'
-                                                : branch.includes('develop') || branch.includes('Develop')
-                                                    ? '🛠️'
-                                                    : '📁'
+                                                : prefix.includes('main') || prefix.includes('Main')
+                                                    ? '⭐️'
+                                                    : branch.includes('develop') || branch.includes('Develop')
+                                                        ? '🛠️'
+                                                        : '📁'
                                 }
-                                </span>
-                                <span>${this.escapeHtml(branch)}</span>
-                                <div class="branch-actions">
-                                    <button onclick="switchBranch('${this.escapeHtml(
-                                    branch
-                                )}')" class="action-button">
-                                        🔄 Switch
-                                    </button>
-                                    ${branch !== 'develop' && branch !== 'main'
-                                    ? `<button onclick="confirmDelete('${this.escapeHtml(
-                                        branch
-                                    )}')" class="action-button danger">
-                                            🗑️ Delete
-                                        </button>`
-                                    : '<button disabled title="Cannot delete develop branch" class="action-button" style="opacity: 0.5">🗑️ Delete</button>'
-                                }
+                                                </span>
+                                                <span>${this.escapeHtml(branch)}</span>
+                                            </div>
+                                        `).join('')}
                                 </div>
                             </div>
-                        `
-                        )
-                        .join('')}
-                    </div>
+                        `}).join('')}
                 </div>
-            `;
-            })
-            .join('');
+            </div>`;
 
         const remoteBranchesHtml = Array.from(remoteBranches.entries())
             .map(([remote, branches]) => {
@@ -182,8 +174,10 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
                 return `<div class="remote-group">
                     <div class="group-header" onclick="toggleGroup('${remoteId}')">
-                        <span class="toggle-icon">▶</span>
-                        <span class="group-name">${remote}  </span>
+                        <span class="toggle-icon">→</span>
+                        <span class="group-name">
+                            ${remote === 'origin' ? `🥚 ${remote}` : remote}
+                        </span>
                         <span class="branch-count">(${branches.length})</span>
                     </div>
                     <div id="${remoteId}" class="group-content">
@@ -195,7 +189,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                             )}`;
                             return `<div class="branch-subgroup">
                                     <div class="subgroup-header" onclick="toggleGroup('${subGroupId}')">
-                                        <span class="toggle-icon">▶</span>
+                                        <span class="toggle-icon">→</span>
                                         <span class="group-name">${prefix.replace('/', ' ')}  </span>
                                         <span class="branch-count"> (${prefixBranches.length})</span>
                                     </div>
@@ -206,7 +200,24 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                                             <div class="branch-item" oncontextmenu="event.preventDefault(); showRemoteBranchMenu(event, '${this.escapeHtml(
                                             branch
                                         )}', '${this.escapeHtml(remoteId)}')">
-                                                <span class="branch-icon">🔹</span>
+                                                 <span class="branch-icon">
+                                    ${branch.includes('feature') || branch.includes('Feature')
+                                                ? '✨'
+                                                : branch.includes('origin')
+                                                    ? '🥚'
+                                                    : branch.includes('bugfix') || branch.includes('Bugfix')
+                                                        ? '🐛'
+                                                        : branch.includes('hotfix') || branch.includes('Hotfix')
+                                                            ? '🚨'
+                                                            : branch.includes('release') || branch.includes('Release')
+                                                                ? '🚀'
+                                                                : prefix.includes('main') || prefix.includes('Main')
+                                                                    ? '⭐️'
+                                                                    : branch.includes('develop') || branch.includes('Develop')
+                                                                        ? '🛠️'
+                                                                        : '📁'
+                                            }
+                                </span>
                                                 <span>${this.escapeHtml(branch)}</span>
                                             </div>
                                         `
@@ -242,7 +253,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 margin-bottom: 8px;
             }
             .branch-subgroup {
-                margin-left: 16px;
+                margin-left: 8px;
             }
             .subgroup-header {
                 display: flex;
@@ -285,7 +296,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-        const updatedToggleScript = `
+        const toggleScript = `
             function toggleGroup(groupId) {
                 const element = document.getElementById(groupId);
                 const header = element.previousElementSibling;
@@ -320,7 +331,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     };
                     menu.appendChild(switchItem);
     
-                    if (branch !== 'develop') {
+                    if (branch !== 'develop' || branch !== 'main') {
                         const deleteItem = document.createElement('div');
                         deleteItem.className = 'context-menu-item danger';
                         deleteItem.innerHTML = '🗑️ Delete Branch';
@@ -384,219 +395,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-        const styles = `body {
-                           font-family: var(--vscode-font-family);
-                           color: var(--vscode-foreground);
-                           background-color: var(--vscode-editor-background);
-                           padding: 10px;
-                        }
-                        .branch-section {
-                            margin-bottom: 20px;
-                        }
-                        .remote-section {
-                            margin-bottom: 10px;
-                        }
-                        .remote-header {
-                            display: flex;
-                            align-items: center;
-                            cursor: pointer;
-                            padding: 5px;
-                            background-color: var(--vscode-sideBar-background);
-                            border-radius: 3px;
-                        }
-                        .remote-header:hover {
-                            background-color: var(--vscode-list-hoverBackground);
-                        }
-                        .remote-branches {
-                            margin-left: 20px;
-                            border-left: 1px solid var(--vscode-panel-border);
-                            padding-left: 10px;
-                            display: none;
-                        }
-                        .branch-item {
-                            display: flex;
-                            align-items: center;
-                            padding: 5px;
-                            cursor: pointer;
-                        }
-                        .branch-item:hover {
-                            background-color: var(--vscode-list-hoverBackground);
-                        }
-                        .branch-actions {
-                            margin-left: auto;
-                        }
-
-                        button {
-                            background-color: var(--vscode-button-background);
-                            color: var(--vscode-button-foreground);
-                            border: none;
-                            padding: 6px 12px;
-                            cursor: pointer;
-                            margin-left: 4px;
-                            border-radius: 4px;
-                            font-size: 12px;
-                            transition: all 0.2s ease;
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 4px;
-                        }
-
-                        button:hover {
-                            background-color: var(--vscode-button-hoverBackground);
-                            transform: translateY(-1px);
-                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                        }
-
-                        button:active {
-                            transform: translateY(0);
-                            box-shadow: none;
-                        }
-
-                        button[disabled] {
-                            opacity: 0.5;
-                            cursor: not-allowed;
-                            transform: none;
-                            box-shadow: none;
-                        }
-
-                        button.danger {
-                            background-color: var(--vscode-errorForeground);
-                        }
-
-                        button.primary {
-                            background-color: var(--vscode-button-background);
-                            font-weight: 500;
-                        }
-
-                        .branch-icon {
-                            margin-right: 8px;
-                        }
-                    
-                        h4 {
-                            margin: 0;
-                        }
-
-                        .modal {
-                            display: none;
-                            position: fixed;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                            background: var(--vscode-editor-background);
-                            padding: 30px;
-                            border: 1px solid var(--vscode-panel-border);
-                            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-                            z-index: 1000;
-                            min-width: 350px;
-                            width: 50%;
-                            max-width: 500px;
-                        }
-                    
-                        .modal-buttons {
-                            margin-top: 15px;
-                            display: flex;
-                            justify-content: flex-end;
-                            gap: 10px;
-                        }
-                        
-                        .overlay {
-                            display: none;
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            right: 0;
-                            bottom: 0;
-                            background: rgba(0,0,0,0.5);
-                            z-index: 999;
-                        }
-                        .branch-form {
-                            display: flex;
-                            flex-direction: column;
-                            gap: 12px;
-                        }
-
-                        .form-group {
-                            display: flex;
-                            flex-direction: column;
-                            gap: 4px;
-                        }
-
-                        .form-group label {
-                            font-size: 12px;
-                            color: var(--vscode-foreground);
-                        }
-
-                        .form-group input {
-                            padding: 6px 8px;
-                            background: var(--vscode-input-background);
-                            color: var(--vscode-input-foreground);
-                            border: 1px solid var(--vscode-input-border);
-                            border-radius: 4px;
-                        }
-
-                        .form-group input:focus {
-                            outline: none;
-                            border-color: var(--vscode-focusBorder);
-                        }
-
-                        .error-text {
-                            color: var(--vscode-errorForeground);
-                            font-size: 12px;
-                            margin-top: 4px;
-                        }
-                        ${additionalStyles}
-
-                        .context-menu-item {
-                            display: flex;
-                            padding: 6px 12px;
-                            cursor: pointer;
-                            border-radius: 4px;
-                            transition: background-color 0.2s ease;
-                        }`;
-
-        const body = ` <h2>🚇 Branches</h2>
-                <p>Here you can manage your Git branches: create new ones, switch between branches, and delete existing branches.</p>
-
-
-                <div class="branch-section">
-                    <h3>Local Branches</h3>
-                    ${localBranchesHtml}
-                </div>
-    
-                <div class="branch-section">
-                    <h3>Remote Branches</h3>
-                    ${remoteBranchesHtml}
-                </div>
-
-                <div id="deleteModal" class="modal">
-                    <h3>Confirm Delete</h3>
-                    <p>Are you sure you want to delete branch: <span id="branchToDelete"></span>?</p>
-                    <div class="modal-buttons">
-                        <button onclick="cancelDelete()">Cancel</button>
-                        <button onclick="proceedDelete()" style="background: var(--vscode-errorForeground);">Delete</button>
-                    </div>
-                </div>
-                <div id="overlay" class="overlay"></div>`;
-
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>🚇 Branches</title>
-                <style>
-                    ${styles}
-                </style>
-            </head>
-            <body>
-                ${body}
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    ${updatedToggleScript} 
-                    
-                    function refresh() {
+        const otherScripts = `function refresh() {
                         vscode.postMessage({ command: 'refresh' });
                     }
     
@@ -737,12 +536,9 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                      function removeRemoteBranch() {
                         confirmDelete(window.selectedBranch, true);
                         closeContextMenu();
-                    }
+                    }`
 
-                  
-   
-                </script>
-                <div id="remoteBranchMenu" class="context-menu" style="display: none;">
+        const contextMenu = ` <div id="remoteBranchMenu" class="context-menu" style="display: none;">
                     <div class="context-menu-item" onclick="switchBranchRemote()">
                         🎛️ Swicth Branch
                     </div>
@@ -759,7 +555,194 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     <div class="context-menu-item" onclick="removeRemoteBranch()"> 
                         🗑️ Delete <small>(Be wise...)</small>
                     </div>
+                </div>`
+
+        const styles = `body {
+                           font-family: var(--vscode-font-family);
+                           color: var(--vscode-foreground);
+                           background-color: var(--vscode-editor-background);
+                           padding: 10px;
+                        }
+                        .branch-section {
+                            margin-bottom: 20px;
+                        }
+                        .remote-section {
+                            margin-bottom: 10px;
+                        }
+                        .remote-header {
+                            display: flex;
+                            align-items: center;
+                            cursor: pointer;
+                            padding: 5px;
+                            background-color: var(--vscode-sideBar-background);
+                            border-radius: 3px;
+                        }
+                        .remote-header:hover {
+                            background-color: var(--vscode-list-hoverBackground);
+                        }
+                        .remote-branches {
+                            margin-left: 20px;
+                            border-left: 1px solid var(--vscode-panel-border);
+                            padding-left: 10px;
+                            display: none;
+                        }
+                        .branch-item {
+                            display: flex;
+                            align-items: center;
+                            padding: 8px 5px;
+                            cursor: pointer;
+                            border-radius: 4px;
+                        }
+                        .branch-item:hover {
+                            background-color: var(--vscode-list-hoverBackground);
+                        }
+                        .branch-icon {
+                            margin-right: 8px;
+                            width: 16px;
+                            text-align: center;
+                        }
+                        .group-header {
+                            display: flex;
+                            align-items: center;
+                            padding: 6px;
+                            cursor: pointer;
+                            border-radius: 4px;
+                        }
+                        .group-header:hover {
+                            background-color: var(--vscode-list-hoverBackground);
+                        }
+                        .group-name {
+                            margin-right: 8px;
+                        }
+                        .branch-count {
+                            opacity: 0.7;
+                            font-size: 0.9em;
+                        }
+                    h4 {
+                        margin: 0;
+                    }
+
+                    .modal {
+                        display: none;
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: var(--vscode-editor-background);
+                        padding: 30px;
+                        border: 1px solid var(--vscode-panel-border);
+                        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                        z-index: 1000;
+                        min-width: 350px;
+                        width: 50%;
+                        max-width: 500px;
+                    }
+
+                    .modal-buttons {
+                        margin-top: 15px;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 10px;
+                    }
+
+                    .overlay {
+                        display: none;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0,0,0,0.5);
+                        z-index: 999;
+                    }
+                    .branch-form {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 12px;
+                    }
+
+                    .form-group {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 4px;
+                    }
+
+                    .form-group label {
+                        font-size: 12px;
+                        color: var(--vscode-foreground);
+                    }
+
+                    .form-group input {
+                        padding: 6px 8px;
+                        background: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
+                    }
+
+                    .form-group input:focus {
+                        outline: none;
+                        border-color: var(--vscode-focusBorder);
+                    }
+
+                    .error-text {
+                        color: var(--vscode-errorForeground);
+                        font-size: 12px;
+                        margin-top: 4px;
+                    }
+                    ${additionalStyles}
+
+                    .context-menu-item {
+                        display: flex;
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        border-radius: 4px;
+                        transition: background-color 0.2s ease;
+                        align-items: center;
+                        gap: 8px;
+                    }`;
+
+        const body = `
+
+                <div class="branch-section">
+                    <h3>Local Branches</h3>
+                    ${localBranchesHtml}
                 </div>
+    
+                <div class="branch-section">
+                    <h3>Remote Branches</h3>
+                    ${remoteBranchesHtml}
+                </div>
+
+                <div id="deleteModal" class="modal">
+                    <h3>Confirm Delete</h3>
+                    <p>Are you sure you want to delete branch: <span id="branchToDelete"></span>?</p>
+                    <div class="modal-buttons">
+                        <button onclick="cancelDelete()">Cancel</button>
+                        <button onclick="proceedDelete()" style="background: var(--vscode-errorForeground);">Delete</button>
+                    </div>
+                </div>
+                <div id="overlay" class="overlay"></div>`;
+
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>🚇 Branches</title>
+                <style>
+                    ${styles}
+                </style>
+            </head>
+            <body>
+                ${body}
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    ${toggleScript} 
+                    ${otherScripts}   
+                </script>
+                ${contextMenu}
             </body>
             </html>
         `;
@@ -771,7 +754,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         branches.forEach(branch => {
             const match = branch.match(/^([^/]+\/)?(.+)$/);
             if (match) {
-                const prefix = match[1] || match[0] || '/'; //before we search for shortcut then longone
+                const prefix = match[1] || match[0] || '/';
                 if (!groups[prefix]) {
                     groups[prefix] = [];
                 }
