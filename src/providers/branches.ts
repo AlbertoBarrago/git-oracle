@@ -7,89 +7,29 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
 
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
-        this.gitService.startAutoFetch();
-        gitChangeEmitter.event(() => {
+        // Move auto-fetch start to after git repo verification
+        gitChangeEmitter.event(async () => {
             if (this._view) {
-                this.refresh().then(html => {
+                try {
+                    const html = await this.refresh();
                     this._view!.webview.html = html;
-                });
+                } catch (error) {
+                    console.error('Failed to refresh view:', error);
+                    this._view!.webview.html = this.generateErrorHtml(error as Error);
+                }
             }
         });
     }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
-        const views = new Views();
 
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this.extensionUri],
         };
 
-        webviewView.webview.onDidReceiveMessage(async message => {
-            switch (message.command) {
-                case 'openFolder':
-                    vscode.commands.executeCommand('workbench.action.files.openFolder');
-                    break;
-                case 'createBranch':
-                    try {
-                        await this.gitService.createBranch(message.branch);
-                        vscode.window.showInformationMessage(`Created branch '${message.branch}'`);
-                        webviewView.webview.html = await this.refresh();
-                    } catch (error) {
-                        vscode.window.showErrorMessage(`Failed to create branch: ${error}`);
-                    }
-                    break;
-                case 'refresh':
-                    try {
-                        webviewView.webview.html = await this.refresh();
-                    } catch (error) {
-                        vscode.window.showErrorMessage(`Failed to refresh branches: ${error}`);
-                    }
-                    break;
-                case 'switch':
-                    try {
-                        await this.gitService.switchBranch(message.branch);
-                        vscode.window.showInformationMessage(`Switched to branch '${message.branch}'`);
-                        gitChangeEmitter.fire();
-                    } catch (error) {
-                        vscode.window.showErrorMessage(`Failed to checkout branch: ${error}`);
-                    }
-                    break;
-                case 'delete':
-                    try {
-                        await this.gitService.deleteBranch(message.branch);
-                        vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                        webviewView.webview.html = await this.refresh();
-                    } catch (error) {
-                        vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
-                    }
-                    break;
-                case 'delete-remote':
-                    try {
-                        await this.gitService.deleteRemoteBranch(message.branch);
-                        vscode.window.showInformationMessage(`Deleted branch '${message.branch}'`);
-                        webviewView.webview.html = await this.refresh();
-                    } catch (error) {
-                        vscode.window.showErrorMessage(`Failed to delete branch: ${error}`);
-                    }
-                    break;
-            }
-        });
-
-        if (!views.isWorkspaceAvailable(vscode.workspace)) {
-            webviewView.webview.html = views.generateNoRepoHtml();
-            return;
-        }
-
-        try {
-            const localBranches = await this.gitService.getLocalBranches();
-            const remoteBranches = await this.gitService.getRemoteBranches();
-            webviewView.webview.html = this.generateBranchesHtml(localBranches, remoteBranches);
-
-        } catch (error) {
-            webviewView.webview.html = this.generateErrorHtml(error as Error);
-        }
+        await this.gitService.startAutoFetch();
     }
 
     async refresh(): Promise<string> {
