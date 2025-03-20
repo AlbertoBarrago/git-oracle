@@ -37,18 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v1.0.2  Improved autofetch for git repository status (handling authentication if is needed)
 
 
-### Changed
-- Improved watcher all over modules
-- Improved sync control for webviews
-
-
-### Fixed
-- v0.0.5  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
-
-
 ### Removed
-- Removed old modal for branch management
-- Removed cherry-pick webView
+- v0.0.4 Removed old modal for branch management
 
 ## [0.0.1] - 2025-03-11
 
