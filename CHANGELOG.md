@@ -33,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Removed old modal for branch management
 
-
 ## [0.0.5] - 2025-03-15
 ### Added
 - Added demo gif on README.md
