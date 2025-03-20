@@ -9,15 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added new feature: Git blame on editor selection.
 
-
 ## [0.0.1] - 2025-03-11
-
 ### Added
 - Initial release
 
-
 ## [0.0.2] - 2025-03-11
-
 ### Added
 - Added basic git log visualization
 - Added basic git branch management
@@ -25,16 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added basic git branch operations (create, delete, checkout)
 - Added basic git repository status display
 
-
 ## [0.0.3] - 2025-03-14
-
 ### Added
 - Integrate terminal view for log with actions
 - Improved watcher all over modules
 
-
 ## [0.0.4] - 2025-03-14
-
 ### Added
 - Changed handling for create branches 
 - Improved sync control for webviews
@@ -43,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.0.5] - 2025-03-15
-
 ### Added
 - Added demo gif on README.md
 - Added handling if there is not a git repository opened
