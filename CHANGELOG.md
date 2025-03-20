@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed 
 - v0.0.6  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
 - v0.0.7  Fixed fileicons (don't propagate for all files)
+- v1.0.2  Handle the case when the user open the extension without a git repository
+- v1.0.2  Improved autofetch for git repository status (handling authentication if is needed)
 
 
 ### Changed
@@ -109,5 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2025-03-19
 ### Fixed
 - Reviewed Change Log
+
+## [1.0.2] - 2025-03-20
+### Fixed
+- Handle the case when the user open the extension without a git repository
+- Improved autofetch for git repository status (handling authentication if is needed)
 
 

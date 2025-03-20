@@ -10,6 +10,7 @@ const execAsync = promisify(exec);
 export class GitService {
     private config = getGitOracleConfig();
     private fetchInterval: NodeJS.Timer | undefined;
+
     /**
      * Executes a git command and returns its output
      * @param command - The git command to execute (string or array of arguments)
@@ -34,17 +35,60 @@ export class GitService {
         }
     }
 
-    public startAutoFetch() {
-        this.fetch();
-        
-        // Set up 5-minute interval for auto-fetch
-        this.fetchInterval = setInterval(async () => {
+    /**
+     * Is the current workspace a git repository
+     * @returns 
+     */
+    private async isGitRepository(): Promise<boolean> {
+        try {
+            await execAsync('git rev-parse --is-inside-work-tree', { cwd: this.getWorkspaceRoot() });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Starts the auto-fetch process
+     * @returns 
+     */
+    public async startAutoFetch() {
+        try {
+            const isGitRepo = await this.isGitRepository();
+            if (!isGitRepo) {
+                vscode.window.showErrorMessage('Not a git repository');
+                console.log('Not a git repository, auto-fetch disabled');
+                return;
+            }
+
             try {
                 await this.fetch();
             } catch (error) {
-                console.error('Auto-fetch failed:', error);
+                if (error instanceof Error && error.message.includes('Authentication required')) {
+                    vscode.window.showErrorMessage('Authentication required');
+                    console.log('Authentication required, auto-fetch disabled');
+                    return;
+                }
+                throw error;
             }
-        }, this.config.fetchTimer);
+            
+            // Only set up interval if initial fetch succeeds
+            this.fetchInterval = setInterval(async () => {
+                try {
+                    await this.fetch();
+                } catch (error) {
+                    console.error('Auto-fetch failed:', error);
+                    if (error instanceof Error && error.message.includes('Authentication required')) {
+                        if (this.fetchInterval) {
+                            clearInterval(this.fetchInterval);
+                            this.fetchInterval = undefined;
+                        }
+                    }
+                }
+            }, this.config.fetchTimer);
+        } catch (error) {
+            console.error('Failed to start auto-fetch:', error);
+        }
     }
 
     /**
