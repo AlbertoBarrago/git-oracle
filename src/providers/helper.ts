@@ -1,4 +1,3 @@
-
 export interface Refreshable<T = void> {
     refresh(): Promise<T> | T;
 }
@@ -18,8 +17,7 @@ export class Views {
         return workspace.workspaceFolders !== undefined;
     }
 
-    public generateNoRepoHtml(): string {
-        return `
+    private html = `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -102,6 +100,9 @@ export class Views {
                 </script>
             </body>
             </html>
-        `;
+        `
+
+    public generateNoRepoHtml(): string {
+        return this.html;
     }
 }
