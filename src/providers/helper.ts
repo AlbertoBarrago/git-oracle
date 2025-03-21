@@ -17,7 +17,7 @@ export class Views {
         return workspace.workspaceFolders !== undefined;
     }
 
-    private html = `
+    public html = `
             <!DOCTYPE html>
             <html lang="en">
             <head>

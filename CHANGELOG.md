@@ -9,9 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added new feature: Git blame on editor selection.
 
-## [0.0.1] - 2025-03-11
+## [1.0.4] - 2025-03-22
+### Fixed
+- Fixed notification system for status updates
+- Improved branch view refresh mechanism
+- Enhanced error handling in webview updates
+
+## [1.0.3] - 2025-03-21
+### Fixed
+- Fix for the case when the user open the extension without a git repository part II
+
+## [1.0.2] - 2025-03-20
+### Fixed
+- Handle the case when the user open the extension without a git repository
+- Improved autofetch for git repository status (handling authentication if is needed)
+
+## [1.0.1] - 2025-03-19
+### Fixed
+- Reviewed Change Log
+
+## [1.0.0] - 2025-03-19
+### Added 
+- New status bar 
+- Added graphic review for log view
+### Changed 
+- Git Blame view removed
+
+## [0.0.8] - 2025-03-18
+### Added 
+- Graphic review for log view
+- Graphic improve for branch's view
+
+## [0.0.7] - 2025-03-17
+### Fixed 
+- Fixed fileicons (don't propagate for all files)
+
+## [0.0.6] - 2025-03-16
+### Fixed 
+- Toggle keyCommand. Can be used CMD + L or CTRL + L or custom key in extension settings
+
+## [0.0.5] - 2025-03-15
 ### Added
-- Initial release
+- Added demo gif on README.md
+- Added handling if there is not a git repository opened
+
+## [0.0.4] - 2025-03-14
+### Added
+- Changed handling for create branches 
+- Improved sync control for webviews
+### Removed
+- Removed old modal for branch management
+
+## [0.0.3] - 2025-03-14
+### Added
+- Integrate terminal view for log with actions
+- Improved watcher all over modules
 
 ## [0.0.2] - 2025-03-11
 ### Added
@@ -21,50 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added basic git branch operations (create, delete, checkout)
 - Added basic git repository status display
 
-## [0.0.3] - 2025-03-14
+## [0.0.1] - 2025-03-11
 ### Added
-- Integrate terminal view for log with actions
-- Improved watcher all over modules
-
-## [0.0.4] - 2025-03-14
-### Added
-- Changed handling for create branches 
-- Improved sync control for webviews
-### Removed
-- Removed old modal for branch management
-
-## [0.0.5] - 2025-03-15
-### Added
-- Added demo gif on README.md
-- Added handling if there is not a git repository opened
-
-## [0.0.6] - 2025-03-16
-### Fixed 
-- Toggle keyCommand. Can be used CMD + L or CTRL + L or custom key in extension settings
-
-## [0.0.7] - 2025-03-17
-### Fixed 
-- Fixed fileicons (don't propagate for all files)
-
-## [0.0.8] - 2025-03-18
-### Added 
-- Graphic review for log view
-- Graphic improve for branch's view
-
-## [1.0.0] - 2025-03-19
-### Added 
-- New status bar 
-- Added graphic review for log view
-### Changed 
-- Git Blame view removed
-
-## [1.0.1] - 2025-03-19
-### Fixed
-- Reviewed Change Log
-
-## [1.0.2] - 2025-03-20
-### Fixed
-- Handle the case when the user open the extension without a git repository
-- Improved autofetch for git repository status (handling authentication if is needed)
-
-
+- Initial release

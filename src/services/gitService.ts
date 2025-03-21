@@ -34,7 +34,7 @@ export class GitService {
             if (!workspaceRoot) {
                 throw new Error('No workspace folder found');
             }
-    
+            this.fetch()
             const commandStr = Array.isArray(command) ? command.join(' ') : command;
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${commandStr}`,
@@ -63,13 +63,11 @@ export class GitService {
             }
     
             try {
-                // First check if .git directory exists
                 await execAsync('git rev-parse --git-dir', { 
                     cwd: workspaceRoot 
                 });
                 return true;
             } catch {
-                // We have a workspace but no git repo
                 const initRepo = await vscode.window.showInformationMessage(
                     'No Git repository found. Would you like to initialize one?',
                     'Yes',
@@ -94,6 +92,13 @@ export class GitService {
         }
     }
 
+    /**
+     * Chacks if the cache is valid
+     * @param cache - The cache to check
+     * @returns Boolean indicating if the cache is valid
+     * @private
+     * @returns 
+     */
     async changeWorkingDirectory(): Promise<boolean> {
         try {
             const workspaceRoot = this.getWorkspaceRoot();
@@ -201,8 +206,6 @@ export class GitService {
             throw error;
         }
     }
-
-    // Branch Operations
 
     /**
      * Creates a new branch
@@ -428,7 +431,6 @@ export class GitService {
         }
     }
 
-    // Repository Status Operations
 
     /**
      * Gets the current git status including branch, user and timestamp
@@ -448,13 +450,27 @@ export class GitService {
             return this.statusCache!.data;
         }
 
-        try {
-            const isGitRepo = await this.isGitRepository();
-            if (!isGitRepo) {
-                vscode.window.showErrorMessage('Not a git repository');
-                console.log('Not a git repository, auto-fetch disabled');
-                return null as any;
+        const isGitRepo = await this.isGitRepository();
+        if(!isGitRepo) {
+            const changed = await this.changeWorkingDirectory();
+            
+            if (changed) {
+                return this.getGitStatus();
             }
+            
+            return { 
+                branch: 'No repository', 
+                user: 'Unknown', 
+                timestamp: new Date().toLocaleString(),
+                added: 0,
+                modified: 0,
+                deleted: 0,
+                remote: 'None',
+                commitHash: 'None'
+            };
+        }
+
+        try {       
             const workspaceRoot = this.getWorkspaceRoot();
             if (!workspaceRoot) {
                 return { 

@@ -1,4 +1,4 @@
-name: Package and release on PR Merge
+name: Package and publish on PR close
 
 permissions:
   contents: write
@@ -52,3 +52,9 @@ jobs:
           asset_path: ./git-oracle-${{ steps.package-version.outputs.version }}.vsix
           asset_name: git-oracle-${{ steps.package-version.outputs.version }}.vsix
           asset_content_type: application/octet-stream
+      
+      - name: Publish to Visual Studio Marketplace
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
+        
+      - name: Publish to Open VSX Registry
+        run: npx ovsx publish -p ${{ secrets.OVSX_PAT }}

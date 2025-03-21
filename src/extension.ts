@@ -66,7 +66,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Register all providers and commands
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('gitOracleStatus', logViewProvider),
         vscode.window.registerWebviewViewProvider('gitOracleBranches', branchViewProvider),

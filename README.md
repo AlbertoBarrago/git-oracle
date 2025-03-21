@@ -4,7 +4,6 @@
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/AlbertoBarrago.git-oracle)](https://marketplace.visualstudio.com/items?itemName=AlbertoBarrago.git-oracle)
 
 [![Package on PR Merge](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/package-on-pr.yml/badge.svg)](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/package-on-pr.yml)
-[![Version Bump and Release](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/version-bump.yml/badge.svg)](https://github.com/AlbertoBarrago/git-oracle/actions/workflows/version-bump.yml)
 
 Git Oracle enhances your VS Code Git experience with powerful visualization tools and streamlined workflows.
 
