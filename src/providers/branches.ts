@@ -5,37 +5,128 @@ import { Views } from './helper';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
-
+    private updateTimeout: NodeJS.Timeout | undefined;
+    private lastUpdate: number = 0;
+    private readonly UPDATE_DEBOUNCE = 1000;
+    private cachedHtml: string | undefined;
+    private branchesCache: {
+        local: string[];
+        remote: Map<string, string[]>;
+        timestamp: number;
+    } | null = null;
+    private readonly CACHE_TTL = 2000;
+    
+    
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
-        // Move auto-fetch start to after git repo verification
-        gitChangeEmitter.event(async () => {
-            if (this._view) {
-                try {
-                    const html = await this.refresh();
-                    this._view!.webview.html = html;
-                } catch (error) {
-                    console.error('Failed to refresh view:', error);
-                    this._view!.webview.html = this.generateErrorHtml(error as Error);
-                }
-            }
+        gitChangeEmitter.event(() => {
+            this.debouncedRefresh();
         });
     }
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
+        const views = new Views();
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [this.extensionUri],
+            localResourceRoots: [this.extensionUri]
         };
 
-        await this.gitService.startAutoFetch();
+        webviewView.webview.onDidReceiveMessage(async (message) => {
+            switch (message.command) {
+                case 'openFolder':
+                    await vscode.commands.executeCommand('vscode.openFolder');
+                    break;
+                case 'switch':
+                    await this.gitService.switchBranch(message.branch);
+                    gitChangeEmitter.fire();
+                    break;
+                case 'delete':
+                    await this.gitService.deleteBranch(message.branch);
+                    gitChangeEmitter.fire();
+                    break;
+                case 'merge':
+                    await this.gitService.mergeBranch(message.source, message.target);
+                    gitChangeEmitter.fire();
+                    break;
+                case 'rebase':
+                    await this.gitService.rebaseBranch(message.source, message.target);
+                    gitChangeEmitter.fire();
+                    break;
+                case 'cherryPick':
+                    await this.gitService.cherryPick(message.branch);
+                    gitChangeEmitter.fire();
+                    break;
+                case 'refresh':
+                    await this.refresh();
+                    break;
+                case 'createBranch':
+                    await this.gitService.createBranch(message.branch);
+                    gitChangeEmitter.fire();
+                    break;
+            }
+        });
+
+        if (!views.isWorkspaceAvailable(vscode.workspace)) {
+            webviewView.webview.html = views.generateNoRepoHtml();
+        } else {
+            await this.refresh();
+        }
+    }
+
+    private async debouncedRefresh(): Promise<void> {
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
+
+        const now = Date.now();
+        if (now - this.lastUpdate < this.UPDATE_DEBOUNCE) {
+            this.updateTimeout = setTimeout(() => this.refresh(), this.UPDATE_DEBOUNCE);
+            return;
+        }
+
+        try {
+            const html = await this.refresh();
+            if (this._view && this.cachedHtml !== html) {
+                this._view.webview.html = html;
+                this.cachedHtml = html;
+            }
+            this.lastUpdate = now;
+        } catch (error) {
+            vscode.window.showErrorMessage('Failed to refresh view');
+            console.error('Failed to refresh view:', error);
+            if (this._view) {
+                this._view.webview.html = this.generateErrorHtml(error as Error);
+            }
+        }
     }
 
     async refresh(): Promise<string> {
-        const refreshedLocal = await this.gitService.getLocalBranches();
-        const refreshedRemote = await this.gitService.getRemoteBranches();
-        return this.generateBranchesHtml(refreshedLocal, refreshedRemote);
+        if (this.branchesCache && 
+            (Date.now() - this.branchesCache.timestamp) < this.CACHE_TTL) {
+            return this.generateBranchesHtml(
+                this.branchesCache.local,
+                this.branchesCache.remote
+            );
+        }
+
+        try {
+            const [localBranches, remoteBranches] = await Promise.all([
+                this.gitService.getLocalBranches(),
+                this.gitService.getRemoteBranches()
+            ]);
+
+            this.branchesCache = {
+                local: localBranches,
+                remote: remoteBranches,
+                timestamp: Date.now()
+            };
+
+            return this.generateBranchesHtml(localBranches, remoteBranches);
+        } catch (error) {
+            console.error('Error fetching branches:', error);
+            throw error;
+        }
     }
 
     private generateBranchesHtml(
@@ -236,7 +327,9 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
         `;
 
-        const toggleScript = `
+        const scripts = `
+            const vscode = acquireVsCodeApi();
+            
             function toggleGroup(groupId) {
                 const element = document.getElementById(groupId);
                 const header = element.previousElementSibling;
@@ -333,9 +426,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     icon.style.transform = 'rotate(90deg)';
                 }
             }
-        `;
-
-        const otherScripts = `function refresh() {
+                function refresh() {
                         vscode.postMessage({ command: 'refresh' });
                     }
     
@@ -476,11 +567,12 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                      function removeRemoteBranch() {
                         confirmDelete(window.selectedBranch, true);
                         closeContextMenu();
-                    }`
+                    }
+        `;
 
         const contextMenu = ` <div id="remoteBranchMenu" class="context-menu" style="display: none;">
                     <div class="context-menu-item" onclick="switchBranchRemote()">
-                        🎛️ Swicth Branch
+                        🔄 Switch Branch
                     </div>
                     <hr /> 
                     <div class="context-menu-item" onclick="mergeWithDevelop()">
@@ -492,8 +584,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                     <div class="context-menu-item" onclick="cherryPickBranch()">
                         🍒 Cherry-pick
                     </div>
-                    <div class="context-menu-item" onclick="removeRemoteBranch()"> 
-                        🗑️ Delete <small>(Be wise...)</small>
+                    <div class="context-menu-item danger" onclick="removeRemoteBranch()"> 
+                        🗑️ Delete Branch
                     </div>
                 </div>`
 
@@ -678,9 +770,8 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             <body>
                 ${body}
                 <script>
-                    const vscode = acquireVsCodeApi();
-                    ${toggleScript} 
-                    ${otherScripts}   
+                    
+                    ${scripts} 
                 </script>
                 ${contextMenu}
             </body>

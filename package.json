@@ -3,7 +3,7 @@
   "displayName": "Git Oracle",
   "author": "Alberto Barrago (alBz) <albertobarrago@gmail.com>",
   "description": "🔮 Enhanced Git integration for VS Code with powerful history visualization, blame tracking, interactive cherry-picking, and branch management. Simplify your Git workflow with magical features!",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "AlbertoBarrago",
   "license": "MIT",
   "icon": "images/icon.png",

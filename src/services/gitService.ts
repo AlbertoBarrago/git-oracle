@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { CommitInfo } from '../types/global';
 import { getGitOracleConfig } from '../utils/config';
 
 
@@ -10,6 +9,17 @@ const execAsync = promisify(exec);
 export class GitService {
     private config = getGitOracleConfig();
     private fetchInterval: NodeJS.Timer | undefined;
+    private currentDirectory: string | undefined;
+    private statusCache: {
+        data: any;
+        timestamp: number;
+    } | null = null;
+    private branchesCache: {
+        data: Map<string, string[]>;
+        timestamp: number;
+    } | null = null;
+    
+    private readonly CACHE_TTL = 2000;
 
     /**
      * Executes a git command and returns its output
@@ -20,10 +30,15 @@ export class GitService {
      */
     private async executeGitCommand(command: string | string[], throwOnError = true): Promise<string> {
         try {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                throw new Error('No workspace folder found');
+            }
+    
             const commandStr = Array.isArray(command) ? command.join(' ') : command;
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${commandStr}`,
-                { cwd: this.getWorkspaceRoot() }
+                { cwd: workspaceRoot }
             );
             return stdout;
         } catch (error) {
@@ -41,11 +56,96 @@ export class GitService {
      */
     private async isGitRepository(): Promise<boolean> {
         try {
-            await execAsync('git rev-parse --is-inside-work-tree', { cwd: this.getWorkspaceRoot() });
-            return true;
-        } catch {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return false;
+            }
+    
+            try {
+                // First check if .git directory exists
+                await execAsync('git rev-parse --git-dir', { 
+                    cwd: workspaceRoot 
+                });
+                return true;
+            } catch {
+                // We have a workspace but no git repo
+                const initRepo = await vscode.window.showInformationMessage(
+                    'No Git repository found. Would you like to initialize one?',
+                    'Yes',
+                    'No'
+                );
+    
+                if (initRepo === 'Yes') {
+                    try {
+                        await execAsync('git init', { cwd: workspaceRoot });
+                        vscode.window.showInformationMessage('Git repository initialized successfully');
+                        return true;
+                    } catch (error) {
+                        vscode.window.showErrorMessage('Failed to initialize Git repository');
+                        return false;
+                    }
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error('Error checking git repository:', error);
             return false;
         }
+    }
+
+    async changeWorkingDirectory(): Promise<boolean> {
+        try {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return false;
+            }
+
+            const uri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                defaultUri: vscode.Uri.file(workspaceRoot),
+                openLabel: 'Select Git Repository'
+            });
+
+            if (uri && uri[0]) {
+                this.currentDirectory = uri[0].fsPath;
+                const isGitRepo = await this.isGitRepository();
+                if (!isGitRepo) {
+                    this.currentDirectory = undefined;
+                    vscode.window.showErrorMessage('Selected directory is not a git repository');
+                    return false;
+                }
+                vscode.window.showInformationMessage(`Working directory changed to: ${this.currentDirectory}`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error changing working directory:', error);
+            return false;
+        }
+    }
+
+    getWorkspaceRoot(): string | undefined {
+        if (this.currentDirectory) {
+            return this.currentDirectory;
+        }
+
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            return undefined;
+        }
+
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(activeEditor.document.uri);
+            if (workspaceFolder) {
+                return workspaceFolder.uri.fsPath;
+            }
+        }
+
+        return vscode.workspace.workspaceFolders[0].uri.fsPath;
     }
 
     /**
@@ -72,7 +172,6 @@ export class GitService {
                 throw error;
             }
             
-            // Only set up interval if initial fetch succeeds
             this.fetchInterval = setInterval(async () => {
                 try {
                     await this.fetch();
@@ -101,19 +200,6 @@ export class GitService {
             console.error('Error fetching:', error);
             throw error;
         }
-    }
-
-    /**
-     * Gets the root path of the current workspace
-     * @returns The workspace root path
-     * @private
-     */
-    getWorkspaceRoot(): string {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders) {
-            throw new Error('No workspace folder found');
-        }
-        return workspaceFolders[0].uri.fsPath;
     }
 
     // Branch Operations
@@ -203,7 +289,7 @@ export class GitService {
      */
     async deleteRemoteBranch(fullBranch: string): Promise<void> {
         try {
-            // Split the full branch name into remote and branch parts
+           
             const [remote, ...branchParts] = fullBranch.split('/');
             const branchName = branchParts.join('/');
             const originName = remote.split('-')[1];
@@ -245,35 +331,52 @@ export class GitService {
      * @returns Map of remote names to their branches
      */
     async getRemoteBranches(): Promise<Map<string, string[]>> {
-        this.fetch();
+        // Return cached data if valid
+        if (this.isCacheValid(this.branchesCache)) {
+            return this.branchesCache!.data;
+        }
+
         try {
-            const { stdout } = await execAsync(
-                'git branch -r --format="%(refname:short)"',
-                { cwd: this.getWorkspaceRoot() }
-            );
+            const result = await this.fetchRemoteBranches();
             
-            const remoteMap = new Map<string, string[]>();
-            
-            stdout.split('\n')
-                .filter(branch => branch.trim() !== '')
-                .forEach(branch => {
-                    const parts = branch.split('/');
-                    if (parts.length >= 2) {
-                        const remoteName = parts[0];
-                        const branchName = parts.slice(1).join('/');
-                        
-                        if (!remoteMap.has(remoteName)) {
-                            remoteMap.set(remoteName, []);
-                        }
-                        remoteMap.get(remoteName)?.push(branchName);
-                    }
-                });
-                
-            return remoteMap;
+            // Update cache
+            this.branchesCache = {
+                data: result,
+                timestamp: Date.now()
+            };
+
+            return result;
         } catch (error) {
             console.error('Error fetching remote git branches:', error);
             throw new Error('Failed to fetch remote git branches');
         }
+    }
+
+    private async fetchRemoteBranches(): Promise<Map<string, string[]>> {
+        this.fetch();
+        const { stdout } = await execAsync(
+            'git branch -r --format="%(refname:short)"',
+            { cwd: this.getWorkspaceRoot() }
+        );
+        
+        const remoteMap = new Map<string, string[]>();
+        
+        stdout.split('\n')
+            .filter(branch => branch.trim() !== '')
+            .forEach(branch => {
+                const parts = branch.split('/');
+                if (parts.length >= 2) {
+                    const remoteName = parts[0];
+                    const branchName = parts.slice(1).join('/');
+                    
+                    if (!remoteMap.has(remoteName)) {
+                        remoteMap.set(remoteName, []);
+                    }
+                    remoteMap.get(remoteName)?.push(branchName);
+                }
+            });
+            
+        return remoteMap;
     }
 
     /**
@@ -290,34 +393,6 @@ export class GitService {
         } catch (error) {
             console.error('Error fetching git branches:', error);
             throw new Error('Failed to fetch git branches');
-        }
-    }
-
-    // Commit Operations
-
-    /**
-     * Gets the commit history
-     * @returns Array of commit information
-     */
-    async getCommitHistory(): Promise<CommitInfo[]> {
-        try {
-            this.fetch();
-            const dateFormat = this.config.showRelativeDates ? '--date=relative' : '--date=format:%Y-%m-%d %H:%M:%S';
-            const command = `log -n ${this.config.maxCommitHistory} --pretty=format:"%H|%an|%ad|%s" ${dateFormat}`;
-            const stdout = await this.executeGitCommand(command);
-
-            return stdout.split('\n').map(line => {
-                const [hash, author, date, ...messageParts] = line.split('|');
-                return {
-                    hash,
-                    author,
-                    date,
-                    message: messageParts.join('|')
-                };
-            });
-        } catch (error) {
-            console.error('Error fetching git history:', error);
-            throw new Error('Failed to fetch git history');
         }
     }
 
@@ -359,7 +434,6 @@ export class GitService {
      * Gets the current git status including branch, user and timestamp
      * @returns Object containing status information
      */
-    // Add to your GitService class
     async getGitStatus(): Promise<{ 
         branch: string; 
         user: string; 
@@ -370,7 +444,17 @@ export class GitService {
         remote: string;
         commitHash: string;
     }> {
+        if (this.isCacheValid(this.statusCache)) {
+            return this.statusCache!.data;
+        }
+
         try {
+            const isGitRepo = await this.isGitRepository();
+            if (!isGitRepo) {
+                vscode.window.showErrorMessage('Not a git repository');
+                console.log('Not a git repository, auto-fetch disabled');
+                return null as any;
+            }
             const workspaceRoot = this.getWorkspaceRoot();
             if (!workspaceRoot) {
                 return { 
@@ -385,19 +469,15 @@ export class GitService {
                 };
             }
     
-            // Get current branch
             const branchOutput = await this.executeGitCommand(['rev-parse', '--abbrev-ref', 'HEAD']);
             const branch = branchOutput.trim();
     
-            // Get user info
             const userOutput = await this.executeGitCommand(['config', 'user.name']);
             const user = userOutput.trim() || 'Unknown';
     
-            // Get last commit timestamp
             const timestampOutput = await this.executeGitCommand(['log', '-1', '--format=%cd', '--date=local']);
             const timestamp = timestampOutput.trim() || new Date().toLocaleString();
     
-            // Get status counts
             const statusOutput = await this.executeGitCommand(['status', '--porcelain']);
             const statusLines = statusOutput.split('\n').filter(line => line.trim().length > 0);
             
@@ -409,11 +489,9 @@ export class GitService {
                 if (status.includes('D')) deleted++;
             });
     
-            // Get remote tracking info
             const remoteOutput = await this.executeGitCommand(['rev-parse', '--abbrev-ref', '@{upstream}'], false);
             const remote = remoteOutput.trim() || 'Not tracking';
     
-            // Get current commit hash
             const hashOutput = await this.executeGitCommand(['rev-parse', '--short', 'HEAD'], false);
             const commitHash = hashOutput.trim() || 'No commits';
     
@@ -440,7 +518,7 @@ export class GitService {
      * @param label - Source branch label
      * @param branch - Target branch name
      */
-    async mergeBranches(label: string, branch: string): Promise<void> {
+    async mergeBranch(label: string, branch: string): Promise<void> {
         try {
             await execAsync(
                 `git merge ${label} ${branch}`,
@@ -457,7 +535,7 @@ export class GitService {
      * @param label - Source branch label
      * @param branch - Target branch name
      */
-    async rebaseBranches(label: string, branch: string): Promise<void> {
+    async rebaseBranch(label: string, branch: string): Promise<void> {
         try {
             await execAsync(
                 `git rebase ${label} ${branch}`,
@@ -473,5 +551,9 @@ export class GitService {
         if (this.fetchInterval) {
             clearInterval(this.fetchInterval);
         }
+    }
+
+    private isCacheValid(cache: { timestamp: number } | null): boolean {
+        return cache !== null && (Date.now() - cache.timestamp) < this.CACHE_TTL;
     }
 }

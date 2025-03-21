@@ -6,6 +6,10 @@ import { Views } from './helper';
 export class LogViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private terminal: vscode.Terminal | undefined;
+    private updateTimeout: NodeJS.Timeout | undefined;
+    private lastUpdate: number = 0;
+    private readonly UPDATE_DEBOUNCE = 10000;
+    private cachedHtml: string | undefined;
 
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
 
@@ -32,12 +36,10 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
         if (!views.isWorkspaceAvailable(vscode.workspace)) {
             webviewView.webview.html = views.generateNoRepoHtml();
-            return;
+        } else {
+            const status = await this.gitService.getGitStatus();
+            webviewView.webview.html = this.generateLogHtml(status);
         }
-
-        const status = await this.gitService.getGitStatus();
-        const log = await this.gitService.getLog();
-        webviewView.webview.html = this.generateLogHtml(status);
     }
 
     private async showTerminalLog() {
@@ -52,27 +54,40 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async updateView() {
-        if (this._view) {
-            const log = await this.gitService.getLog();
+        if (!this._view) return;
+
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
+
+        const now = Date.now();
+        if (now - this.lastUpdate < this.UPDATE_DEBOUNCE) {
+            this.updateTimeout = setTimeout(() => this.updateView(), this.UPDATE_DEBOUNCE);
+            return;
+        }
+
+        try {
             const status = await this.gitService.getGitStatus();
-            this._view.webview.html = this.generateLogHtml(status);
+            const newHtml = this.generateLogHtml(status);
+            
+            if (this.cachedHtml !== newHtml) {
+                this._view.webview.html = newHtml;
+                this.cachedHtml = newHtml;
+            }
+            
+            this.lastUpdate = now;
+        } catch (error) {
+            console.error('Failed to update view:', error);
         }
     }
 
     async refresh(): Promise<void> {
-        await this.updateView();
-    }
-
-    private formatLogWithStyle(log: string): string {
-        if (!log) {
-            return '<div class="empty-state">No commits to display</div>';
+        this.cachedHtml = undefined;
+        this.lastUpdate = 0;
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
         }
-
-        return `
-            <div class="git-log">
-                <pre style="color: var(--vscode-terminal-foreground);">${log}</pre>
-            </div>
-        `;
+        await this.updateView();
     }
 
     private generateLogHtml(status: {
@@ -189,55 +204,6 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         `;
     }
 
-    private groupLogByBranch(logEntries: string[]): Record<string, string[]> {
-        const groups: Record<string, string[]> = {};
-        let currentBranch = 'main';
-
-        logEntries.forEach(entry => {
-            const branchMatch = entry.match(/\((.*?)\)/);
-            if (branchMatch) {
-                currentBranch = branchMatch[1].trim();
-            }
-
-            if (!groups[currentBranch]) {
-                groups[currentBranch] = [];
-            }
-            groups[currentBranch].push(entry);
-        });
-
-        return groups;
-    }
-
-    private generateErrorHtml(error: Error): string {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Log - Error</title>
-                <style>
-                    body {
-                        font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
-                        background-color: var(--vscode-editor-background);
-                        padding: 10px;
-                    }
-                    .error {
-                        color: var(--vscode-errorForeground);
-                        padding: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="error">
-                    <p>${this.escapeHtml(error.message)}</p>
-                </div>
-            </body>
-            </html>
-        `;
-    }
-
     private escapeHtml(unsafe: string): string {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -248,6 +214,9 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     }
 
     dispose() {
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
         this.terminal?.dispose();
     }
 }
