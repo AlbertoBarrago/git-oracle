@@ -34,7 +34,7 @@ export class GitService {
             if (!workspaceRoot) {
                 throw new Error('No workspace folder found');
             }
-    
+            this.fetch()
             const commandStr = Array.isArray(command) ? command.join(' ') : command;
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${commandStr}`,

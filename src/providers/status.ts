@@ -8,7 +8,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     private terminal: vscode.Terminal | undefined;
     private updateTimeout: NodeJS.Timeout | undefined;
     private lastUpdate: number = 0;
-    private readonly UPDATE_DEBOUNCE = 10000;
+    private readonly UPDATE_DEBOUNCE = 1000;
     private cachedHtml: string | undefined;
 
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) { }
@@ -37,8 +37,14 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         if (!views.isWorkspaceAvailable(vscode.workspace)) {
             webviewView.webview.html = views.generateNoRepoHtml();
         } else {
-            const status = await this.gitService.getGitStatus();
-            webviewView.webview.html = this.generateLogHtml(status);
+            try {
+                const status = await this.gitService.getGitStatus();
+                webviewView.webview.html = this.generateLogHtml(status);
+                this.cachedHtml = this.generateLogHtml(status);
+            } catch (error) {
+                console.error('Failed to initialize status view:', error);
+                webviewView.webview.html = this.generateErrorHtml(error as Error);
+            }
         }
     }
 
@@ -81,13 +87,28 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    async refresh(): Promise<void> {
+    async refresh(): Promise<string> {
         this.cachedHtml = undefined;
         this.lastUpdate = 0;
         if (this.updateTimeout) {
             clearTimeout(this.updateTimeout);
         }
-        await this.updateView();
+        
+        try {
+            const status = await this.gitService.getGitStatus();
+            const html = this.generateLogHtml(status);
+            
+            if (this._view) {
+                this._view.webview.html = html;
+                this.cachedHtml = html;
+                vscode.window.showInformationMessage('Status Updated 🫡');
+            }
+            
+            return html;
+        } catch (error) {
+            console.error('Error updating status:', error);
+            throw error;
+        }
     }
 
     private generateLogHtml(status: {
@@ -211,6 +232,61 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+
+    private generateErrorHtml(error: Error): string {
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {
+                        font-family: var(--vscode-font-family);
+                        color: var(--vscode-foreground);
+                        padding: 20px;
+                        text-align: center;
+                    }
+                    .error-container {
+                        background: var(--vscode-inputValidation-errorBackground);
+                        border: 1px solid var(--vscode-inputValidation-errorBorder);
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }
+                    .error-icon {
+                        font-size: 48px;
+                        margin-bottom: 10px;
+                    }
+                    .error-message {
+                        color: var(--vscode-inputValidation-errorForeground);
+                        margin-bottom: 15px;
+                    }
+                    .action-button {
+                        background: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 2px;
+                        cursor: pointer;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <div class="error-icon">⚠️</div>
+                    <h3>Error Loading Git Status</h3>
+                    <div class="error-message">${this.escapeHtml(error.message)}</div>
+                    <button class="action-button" onclick="refresh()">Retry</button>
+                </div>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    function refresh() {
+                        vscode.postMessage({ command: 'refresh' });
+                    }
+                </script>
+            </body>
+            </html>
+        `;
     }
 
     dispose() {

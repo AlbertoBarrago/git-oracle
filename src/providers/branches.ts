@@ -7,7 +7,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private updateTimeout: NodeJS.Timeout | undefined;
     private lastUpdate: number = 0;
-    private readonly UPDATE_DEBOUNCE = 1000;
+    private readonly UPDATE_DEBOUNCE = 10000;
     private cachedHtml: string | undefined;
     private branchesCache: {
         local: string[];
@@ -71,7 +71,14 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             webviewView.webview.html = views.generateNoRepoHtml();
             views.addProviders([this]);
         } else {
-            await this.refresh();
+            try {
+                const html = await this.refresh();
+                webviewView.webview.html = html;
+                this.cachedHtml = html;
+            } catch (error) {
+                console.error('Failed to initialize branch view:', error);
+                webviewView.webview.html = this.generateErrorHtml(error as Error);
+            }
         }
     }
 
@@ -103,15 +110,15 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     }
 
     async refresh(): Promise<string> {
-        if (this.branchesCache && 
-            (Date.now() - this.branchesCache.timestamp) < this.CACHE_TTL) {
-            return this.generateBranchesHtml(
-                this.branchesCache.local,
-                this.branchesCache.remote
-            );
-        }
-
         try {
+            if (this.branchesCache && 
+                (Date.now() - this.branchesCache.timestamp) < this.CACHE_TTL) {
+                return await this.generateBranchesHtml(
+                    this.branchesCache.local,
+                    this.branchesCache.remote
+                );
+            }
+
             const [localBranches, remoteBranches] = await Promise.all([
                 this.gitService.getLocalBranches(),
                 this.gitService.getRemoteBranches()
@@ -123,13 +130,26 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 timestamp: Date.now()
             };
 
-            return this.generateBranchesHtml(localBranches, remoteBranches);
+            const html = await this.generateBranchesHtml(localBranches, remoteBranches);
+            
+            if (this._view?.visible) {
+                try {
+                    this.cachedHtml = html;
+                    this._view.webview.html = html;
+                    vscode.window.showInformationMessage('Branches Updated 🫡');
+                } catch (viewError) {
+                    console.error('Error updating webview:', viewError);
+                }
+            }
+            
+            return html;
         } catch (error) {
             console.error('Error fetching branches:', error);
             throw error;
         }
     }
 
+    // Change this method to not be async since it doesn't use any await operations
     private generateBranchesHtml(
         localBranches: string[],
         remoteBranches: Map<string, string[]>
