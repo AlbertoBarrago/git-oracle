@@ -69,6 +69,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
         if (!views.isWorkspaceAvailable(vscode.workspace)) {
             webviewView.webview.html = views.generateNoRepoHtml();
+            views.addProviders([this]);
         } else {
             await this.refresh();
         }

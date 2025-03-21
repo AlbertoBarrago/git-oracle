@@ -67,4 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle the case when the user open the extension without a git repository
 - Improved autofetch for git repository status (handling authentication if is needed)
 
+## [1.0.3] - 2025-03-21
+### Fixed
+- Fix for the case when the user open the extension without a git repository part II
+
 
