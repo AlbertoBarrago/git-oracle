@@ -9,55 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added new feature: Git blame on editor selection.
 
-
-### Added
-- v0.0.1  Initial release
-- v0.0.2  Basic Git repository information display
-- v0.0.2  Git log visualization
-- v0.0.2  Git branch management
-- v0.0.2  Git commit history display
-- v0.0.2  Git branch operations (create, delete, checkout)
-- v0.0.2  Git repository status display
-- v0.0.3  Integrate terminal view for log with actions
-- v0.0.4  Changed handling for create branches
-- v0.0.4  Removed old modal for branch management
-- v0.0.5  Added demo gif on README.md
-- v0.0.5  Added handling if there is not a git repository opened
-- v0.0.8  Added graphic review for log view
-- v0.0.8  Added graphic improve for branch's view
-- v1.0.0  New status bar
-- v1.0.0  Added graphic review for log view
-- v1.0.1  Reviewed Change Log
-
-
-### Fixed 
-- v0.0.6  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
-- v0.0.7  Fixed fileicons (don't propagate for all files)
-- v1.0.2  Handle the case when the user open the extension without a git repository
-- v1.0.2  Improved autofetch for git repository status (handling authentication if is needed)
-
-
-### Changed
-- Improved watcher all over modules
-- Improved sync control for webviews
-
-
-### Fixed
-- v0.0.5  Fixed toggling keyCommand just for git oracle extension (CMD + L or CTRL + L)
-
-
-### Removed
-- Removed old modal for branch management
-- Removed cherry-pick webView
-
 ## [0.0.1] - 2025-03-11
-
 ### Added
 - Initial release
 
-
 ## [0.0.2] - 2025-03-11
-
 ### Added
 - Added basic git log visualization
 - Added basic git branch management
@@ -65,25 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added basic git branch operations (create, delete, checkout)
 - Added basic git repository status display
 
-
 ## [0.0.3] - 2025-03-14
-
 ### Added
 - Integrate terminal view for log with actions
 - Improved watcher all over modules
 
-
 ## [0.0.4] - 2025-03-14
-
 ### Added
 - Changed handling for create branches 
 - Improved sync control for webviews
 ### Removed
 - Removed old modal for branch management
 
-
 ## [0.0.5] - 2025-03-15
-
 ### Added
 - Added demo gif on README.md
 - Added handling if there is not a git repository opened
