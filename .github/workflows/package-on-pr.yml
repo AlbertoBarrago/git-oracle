@@ -55,6 +55,3 @@ jobs:
       
       - name: Publish to Visual Studio Marketplace
         run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
-        
-      - name: Publish to Open VSX Registry
-        run: npx ovsx publish ./git-oracle-${{ steps.package-version.outputs.version }}.vsix -p ${{ secrets.OVSX_PAT }}
