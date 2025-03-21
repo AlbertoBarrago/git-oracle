@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added new feature: Git blame on editor selection.
 
+## [1.0.6] - 2025-03-22
+### Fixed
+- Working on release pipeline
+
 ## [1.0.5] - 2025-03-22
 ### Fixed
 - Working on release pipeline
