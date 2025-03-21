@@ -36,11 +36,10 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
 
         if (!views.isWorkspaceAvailable(vscode.workspace)) {
             webviewView.webview.html = views.generateNoRepoHtml();
-            return;
+        } else {
+            const status = await this.gitService.getGitStatus();
+            webviewView.webview.html = this.generateLogHtml(status);
         }
-
-        const status = await this.gitService.getGitStatus();
-        webviewView.webview.html = this.generateLogHtml(status);
     }
 
     private async showTerminalLog() {

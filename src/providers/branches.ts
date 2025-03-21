@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
+import { Views } from './helper';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
@@ -15,6 +16,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
     } | null = null;
     private readonly CACHE_TTL = 2000;
     
+    
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
         gitChangeEmitter.event(() => {
             this.debouncedRefresh();
@@ -23,6 +25,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
     async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
         this._view = webviewView;
+        const views = new Views();
 
         webviewView.webview.options = {
             enableScripts: true,
@@ -31,6 +34,9 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.onDidReceiveMessage(async (message) => {
             switch (message.command) {
+                case 'openFolder':
+                    await vscode.commands.executeCommand('vscode.openFolder');
+                    break;
                 case 'switch':
                     await this.gitService.switchBranch(message.branch);
                     gitChangeEmitter.fire();
@@ -54,10 +60,18 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 case 'refresh':
                     await this.refresh();
                     break;
+                case 'createBranch':
+                    await this.gitService.createBranch(message.branch);
+                    gitChangeEmitter.fire();
+                    break;
             }
         });
 
-        await this.refresh();
+        if (!views.isWorkspaceAvailable(vscode.workspace)) {
+            webviewView.webview.html = views.generateNoRepoHtml();
+        } else {
+            await this.refresh();
+        }
     }
 
     private async debouncedRefresh(): Promise<void> {
@@ -79,6 +93,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             }
             this.lastUpdate = now;
         } catch (error) {
+            vscode.window.showErrorMessage('Failed to refresh view');
             console.error('Failed to refresh view:', error);
             if (this._view) {
                 this._view.webview.html = this.generateErrorHtml(error as Error);

@@ -9,6 +9,7 @@ const execAsync = promisify(exec);
 export class GitService {
     private config = getGitOracleConfig();
     private fetchInterval: NodeJS.Timer | undefined;
+    private currentDirectory: string | undefined;
     private statusCache: {
         data: any;
         timestamp: number;
@@ -29,10 +30,15 @@ export class GitService {
      */
     private async executeGitCommand(command: string | string[], throwOnError = true): Promise<string> {
         try {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                throw new Error('No workspace folder found');
+            }
+    
             const commandStr = Array.isArray(command) ? command.join(' ') : command;
             const { stdout } = await execAsync(
                 `${this.config.gitpath} ${commandStr}`,
-                { cwd: this.getWorkspaceRoot() }
+                { cwd: workspaceRoot }
             );
             return stdout;
         } catch (error) {
@@ -50,11 +56,96 @@ export class GitService {
      */
     private async isGitRepository(): Promise<boolean> {
         try {
-            await execAsync('git rev-parse --is-inside-work-tree', { cwd: this.getWorkspaceRoot() });
-            return true;
-        } catch {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return false;
+            }
+    
+            try {
+                // First check if .git directory exists
+                await execAsync('git rev-parse --git-dir', { 
+                    cwd: workspaceRoot 
+                });
+                return true;
+            } catch {
+                // We have a workspace but no git repo
+                const initRepo = await vscode.window.showInformationMessage(
+                    'No Git repository found. Would you like to initialize one?',
+                    'Yes',
+                    'No'
+                );
+    
+                if (initRepo === 'Yes') {
+                    try {
+                        await execAsync('git init', { cwd: workspaceRoot });
+                        vscode.window.showInformationMessage('Git repository initialized successfully');
+                        return true;
+                    } catch (error) {
+                        vscode.window.showErrorMessage('Failed to initialize Git repository');
+                        return false;
+                    }
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error('Error checking git repository:', error);
             return false;
         }
+    }
+
+    async changeWorkingDirectory(): Promise<boolean> {
+        try {
+            const workspaceRoot = this.getWorkspaceRoot();
+            if (!workspaceRoot) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return false;
+            }
+
+            const uri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                defaultUri: vscode.Uri.file(workspaceRoot),
+                openLabel: 'Select Git Repository'
+            });
+
+            if (uri && uri[0]) {
+                this.currentDirectory = uri[0].fsPath;
+                const isGitRepo = await this.isGitRepository();
+                if (!isGitRepo) {
+                    this.currentDirectory = undefined;
+                    vscode.window.showErrorMessage('Selected directory is not a git repository');
+                    return false;
+                }
+                vscode.window.showInformationMessage(`Working directory changed to: ${this.currentDirectory}`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error changing working directory:', error);
+            return false;
+        }
+    }
+
+    getWorkspaceRoot(): string | undefined {
+        if (this.currentDirectory) {
+            return this.currentDirectory;
+        }
+
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            return undefined;
+        }
+
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(activeEditor.document.uri);
+            if (workspaceFolder) {
+                return workspaceFolder.uri.fsPath;
+            }
+        }
+
+        return vscode.workspace.workspaceFolders[0].uri.fsPath;
     }
 
     /**
@@ -109,19 +200,6 @@ export class GitService {
             console.error('Error fetching:', error);
             throw error;
         }
-    }
-
-    /**
-     * Gets the root path of the current workspace
-     * @returns The workspace root path
-     * @private
-     */
-    getWorkspaceRoot(): string {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders) {
-            throw new Error('No workspace folder found');
-        }
-        return workspaceFolders[0].uri.fsPath;
     }
 
     // Branch Operations
