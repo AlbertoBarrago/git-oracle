@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import { getGitOracleConfig } from '../utils/config';
 
 
-const execAsync = promisify(exec);
+export const execAsync = promisify(exec);
 
 export class GitService {
     private config = getGitOracleConfig();
