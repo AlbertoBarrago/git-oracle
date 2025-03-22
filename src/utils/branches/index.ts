@@ -79,6 +79,43 @@ export class BranchHtmlGenerator {
         `;
     }
 
+    public generateErrorHtml(error: Error | undefined): string {
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Git Branches - Error</title>
+                <style>
+                    body {
+                        font-family: var(--vscode-font-family);
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
+                        padding: 10px;
+                    }
+                    .error {
+                        color: var(--vscode-errorForeground);
+                        padding: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h3>Error</h3>
+                    <p>${this.escapeHtml(error ? error.message : "General Error Occurs")}</p>
+                </div>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    function refresh() {
+                        vscode.postMessage({ command: 'refresh' });
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+    }
+
     private generateLocalBranchesHtml(groupedLocalBranches: Record<string, string[]>): string {
         return `
             <div class="branch-group">
@@ -711,43 +748,6 @@ export class BranchHtmlGenerator {
                         confirmDelete(window.selectedBranch, true);
                         closeContextMenu();
                     }
-        `;
-    }
-
-    public generateErrorHtml(error: Error | undefined): string {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Git Branches - Error</title>
-                <style>
-                    body {
-                        font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
-                        background-color: var(--vscode-editor-background);
-                        padding: 10px;
-                    }
-                    .error {
-                        color: var(--vscode-errorForeground);
-                        padding: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="error">
-                    <h3>Error</h3>
-                    <p>${this.escapeHtml(error ? error.message : "General Error Occurs")}</p>
-                </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    function refresh() {
-                        vscode.postMessage({ command: 'refresh' });
-                    }
-                </script>
-            </body>
-            </html>
         `;
     }
 }
