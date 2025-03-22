@@ -103,9 +103,9 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
             if (this._view) {
                 this._view.webview.html = html;
                 this.cachedHtml = html;
-                vscode.window.showInformationMessage('Status Updated 🫡');
             }
 
+            vscode.window.showInformationMessage('Status Updated 🫡');
             return html;
         } catch (error) {
             console.error('Error updating status:', error);

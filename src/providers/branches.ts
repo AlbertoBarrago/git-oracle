@@ -138,11 +138,12 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 try {
                     this.cachedHtml = html;
                     this._view.webview.html = html;
-                    vscode.window.showInformationMessage('Branches Updated 🫡');
                 } catch (viewError) {
                     console.error('Error updating webview:', viewError);
                 }
             }
+
+            vscode.window.showInformationMessage('Branches Updated 🫡');
 
             return html;
         } catch (error) {
