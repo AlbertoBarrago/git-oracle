@@ -3,7 +3,7 @@
   "displayName": "Git Oracle",
   "author": "Alberto Barrago (alBz) <albertobarrago@gmail.com>",
   "description": "🔮 A powerful Git extension for VS Code that enhances your workflow with intuitive history visualization, detailed blame information and efficient branch management. Experience Git like never before!",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "publisher": "AlbertoBarrago",
   "license": "MIT",
   "icon": "images/icon.png",
