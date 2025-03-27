@@ -3,12 +3,14 @@ import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
 import { Views } from './helper';
 import { BranchHtmlGenerator } from '../utils/branches';
+import { getGitOracleConfig } from '../utils/config';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
+    private config = getGitOracleConfig();
     private _view?: vscode.WebviewView;
     private updateTimeout: NodeJS.Timeout | undefined;
     private lastUpdate: number = 0;
-    private readonly UPDATE_DEBOUNCE = 10000;
+    private readonly UPDATE_DEBOUNCE = this.config.fetchTimer;
     private cachedHtml: string | undefined;
     private branchesCache: {
         local: string[];
