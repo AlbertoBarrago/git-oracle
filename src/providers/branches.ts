@@ -3,12 +3,14 @@ import { GitService } from '../services/gitService';
 import { gitChangeEmitter } from '../extension';
 import { Views } from './helper';
 import { BranchHtmlGenerator } from '../utils/branches';
+import { getGitOracleConfig } from '../utils/config';
 
 export class BranchViewProvider implements vscode.WebviewViewProvider {
+    private config = getGitOracleConfig();
     private _view?: vscode.WebviewView;
     private updateTimeout: NodeJS.Timeout | undefined;
     private lastUpdate: number = 0;
-    private readonly UPDATE_DEBOUNCE = 10000;
+    private readonly UPDATE_DEBOUNCE = this.config.fetchTimer;
     private cachedHtml: string | undefined;
     private branchesCache: {
         local: string[];
@@ -16,7 +18,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         timestamp: number;
     } | null = null;
     private readonly CACHE_TTL = 2000;
-    private branchGeneartor = new BranchHtmlGenerator();
+    private branchHtmlGenerator = new BranchHtmlGenerator();
 
 
     constructor(private readonly extensionUri: vscode.Uri, private readonly gitService: GitService) {
@@ -79,7 +81,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 this.cachedHtml = html;
             } catch (error) {
                 console.error('Failed to initialize branch view:', error);
-                webviewView.webview.html = this.branchGeneartor.generateErrorHtml(error as Error);
+                webviewView.webview.html = this.branchHtmlGenerator.generateErrorHtml(error as Error);
             }
         }
     }
@@ -106,7 +108,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
             vscode.window.showErrorMessage('Failed to refresh view');
             console.error('Failed to refresh view:', error);
             if (this._view) {
-                this._view.webview.html = this.branchGeneartor.generateErrorHtml(error as Error);
+                this._view.webview.html = this.branchHtmlGenerator.generateErrorHtml(error as Error);
             }
         }
     }
@@ -115,7 +117,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
         try {
             if (this.branchesCache &&
                 (Date.now() - this.branchesCache.timestamp) < this.CACHE_TTL) {
-                return this.branchGeneartor.generateBranchesHtml(
+                return this.branchHtmlGenerator.generateBranchesHtml(
                     this.branchesCache.local,
                     this.branchesCache.remote
                 );
@@ -132,7 +134,7 @@ export class BranchViewProvider implements vscode.WebviewViewProvider {
                 timestamp: Date.now()
             };
 
-            const html = this.branchGeneartor.generateBranchesHtml(localBranches, remoteBranches);
+            const html = this.branchHtmlGenerator.generateBranchesHtml(localBranches, remoteBranches);
 
             if (this._view?.visible) {
                 try {

@@ -64,7 +64,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
     private async updateView() {
         if (!this._view) return;
 
-        if (this.updateTimeout) {
+       /* if (this.updateTimeout) {
             clearTimeout(this.updateTimeout);
         }
 
@@ -72,7 +72,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
         if (now - this.lastUpdate < this.UPDATE_DEBOUNCE) {
             this.updateTimeout = setTimeout(() => this.updateView(), this.UPDATE_DEBOUNCE);
             return;
-        }
+        }*/
 
         try {
             const status = await this.gitService.getGitStatus();
@@ -83,7 +83,7 @@ export class LogViewProvider implements vscode.WebviewViewProvider {
                 this.cachedHtml = newHtml;
             }
 
-            this.lastUpdate = now;
+            // this.lastUpdate = now;
         } catch (error) {
             console.error('Failed to update view:', error);
         }
